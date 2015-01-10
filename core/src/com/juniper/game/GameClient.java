@@ -1,10 +1,13 @@
 package com.juniper.game;
 
+import com.badlogic.ashley.core.Component;
 import com.badlogic.ashley.core.Engine;
+import com.badlogic.ashley.core.Family;
 import com.badlogic.gdx.*;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
@@ -12,25 +15,24 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
-import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.List;
-import com.badlogic.gdx.scenes.scene2d.ui.TextArea;
-import com.badlogic.gdx.scenes.scene2d.ui.TextField;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
+import com.juniper.game.components.Position;
 import com.juniper.game.network.Network;
-import com.juniper.game.network.Network.Message;
-import com.juniper.game.network.Network.SyncEntities;
 import com.juniper.game.network.Network.*;
+import com.juniper.game.systems.RenderingSystem;
 
 import java.io.IOException;
 import java.util.*;
 
 public class GameClient implements ApplicationListener, InputProcessor {
 	Client client;
+	final int writeBufferSize = 8192; //Default 8192
+	final int objectBufferSize = 2048; //Default 2048 FIXME 10.1.2015 22:30 2048 breaks at about 60 entities
 
 	//Gui
 	private Skin skin;
@@ -44,12 +46,12 @@ public class GameClient implements ApplicationListener, InputProcessor {
 	private TextField gameChatField;
 	private TextArea messageWindow;
 
-
 	//Graphics
 	float w;
 	float h;
 	private OrthographicCamera camera;
 	private SpriteBatch batch;
+	private ShapeRenderer shapeRenderer;
 	private Stage stage;
 	OrthogonalTiledMapRenderer tiledMapRenderer;
 
@@ -57,10 +59,9 @@ public class GameClient implements ApplicationListener, InputProcessor {
 	private List<String> nameList;
 	WorldData worldData;
 	String mapName;
-	String playerConnectionName;
+	HashMap<Long,Component[]> pendingEntitySync;
 
 	//Game state
-	private boolean startGame = false;
 	boolean mapChanged;
 	boolean up;
 	boolean down;
@@ -71,6 +72,8 @@ public class GameClient implements ApplicationListener, InputProcessor {
 	public void create () {
 		worldData = new WorldData(new Engine(),null);
 
+		shapeRenderer = new ShapeRenderer();
+		worldData.addSystem(new RenderingSystem(Family.all(Position.class).get(), shapeRenderer));
 		batch = new SpriteBatch();
 		skin = new Skin(Gdx.files.internal("data/uiskin.json"));
 		stage = new Stage(new ScreenViewport(), batch);
@@ -141,7 +144,6 @@ public class GameClient implements ApplicationListener, InputProcessor {
 				menuLayout.setVisible(false);
 				chatLayout.setVisible(true);
 				stage.setKeyboardFocus(chatField);
-				startGame = false;
 				joinServer(addressText.getText(), nameText.getText());
 				System.out.println("Joining chat" + addressText.getText());
 			}
@@ -170,7 +172,7 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		//chatLayout.debugTable(); // turn on only table lines
 
 		chatLayout.setFillParent(true);
-		nameList = new List<String>(skin);
+		nameList = new List<>(skin);
 		chatArea = new TextArea("", skin);
 		chatField = new TextField("", skin);
 		chatArea.setDisabled(true);
@@ -240,7 +242,7 @@ public class GameClient implements ApplicationListener, InputProcessor {
 	}
 
 	private void joinServer(final String host, final String name, final String spawnMap){
-		client = new Client();
+		client = new Client(writeBufferSize,objectBufferSize);
 		Network.register(client);
 
 		client.addListener(new Listener() {
@@ -268,8 +270,8 @@ public class GameClient implements ApplicationListener, InputProcessor {
 					nameList.setItems(syncPlayerList.playerList.toArray(new String[syncPlayerList.playerList.size()]));
 				}else if (object instanceof SyncEntities) {
 					SyncEntities status = (SyncEntities)object;
-					worldData.updateEntities(status.entities);
-					worldData.printEntities();
+					//FIXME temporarily store update untill we can update entities in game loop, this fixes a lot of nullpointer exceptions but maybe there is a nicer solution
+					pendingEntitySync = status.entities;
 				}else if (object instanceof GoToMap){
 					//If client gets this packet it means the server allows them to change map
 					//Map can't be loaded from the network thread so we set a flag that loads it when possible avoids  RuntimeException: No OpenGL context found in the current thread.
@@ -400,6 +402,13 @@ public class GameClient implements ApplicationListener, InputProcessor {
 			mapChanged = false;
 		}
 
+		//Sync entities with server
+		if(pendingEntitySync != null){
+			worldData.updateEntities(pendingEntitySync);
+			worldData.printEntities();
+			pendingEntitySync = null;
+		}
+
 		if(tiledMapRenderer != null){
 
 			float delta = Gdx.graphics.getDeltaTime(); //seconds
@@ -416,6 +425,12 @@ public class GameClient implements ApplicationListener, InputProcessor {
 			camera.update();
 			tiledMapRenderer.setView(camera);
 			tiledMapRenderer.render();
+
+			shapeRenderer.setProjectionMatrix(camera.combined);
+			shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+			worldData.updateWorld(delta);
+			shapeRenderer.end();
+
 		}
 
 		//Draw GUI

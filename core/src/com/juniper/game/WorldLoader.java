@@ -1,7 +1,6 @@
 package com.juniper.game;
 
 import com.badlogic.ashley.core.Engine;
-import com.badlogic.ashley.core.Entity;
 import tiled.core.Map;
 import tiled.core.MapLayer;
 import tiled.core.MapObject;
@@ -22,7 +21,7 @@ public class WorldLoader {
 	public static WorldData loadWorld(String startingMapName){
 		String resFolderPath = (System.getProperty("user.dir") + File.separator + "res" + File.separator);
 
-		HashMap<String,Map> allMaps = new HashMap<String,Map>();
+		HashMap<String,Map> allMaps = new HashMap<>();
 		WorldData worldData = new WorldData(new Engine(), allMaps);
 
 		System.out.println("#Loading world from: " + resFolderPath);

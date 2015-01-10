@@ -2,7 +2,6 @@ package com.juniper.game;
 
 import com.badlogic.ashley.core.*;
 import com.juniper.game.components.*;
-import com.juniper.game.systems.*;
 import tiled.core.Map;
 import tiled.core.MapObject;
 import com.juniper.game.util.EntityToString;
@@ -13,7 +12,7 @@ public class WorldData implements EntityListener {
 
     private Engine engine;
     public HashMap<String,Map> allMaps;
-	public Vector<Long> entityIDs;
+	public HashMap<Long,Entity> entityIDs;
     public HashMap<String,Vector<Entity>> entitiesInMaps;
     public Vector<String> playerList;
 
@@ -23,11 +22,13 @@ public class WorldData implements EntityListener {
         this.engine = engine;
         engine.addEntityListener(this);
         this.allMaps = allMaps;
-        entitiesInMaps = new HashMap<String,Vector<Entity>>();
-        entityIDs = new Vector<Long>();
-        playerList = new Vector<String>();
+        entitiesInMaps = new HashMap<>();
+        entityIDs = new HashMap<>();
+        playerList = new Vector<>();
+    }
 
-        engine.addSystem(new AIRandomMovementSystem(Family.all(Position.class).get()));
+    public void addSystem(EntitySystem system){
+        engine.addSystem(system);
     }
 
     public int getEntityCount(){
@@ -48,18 +49,11 @@ public class WorldData implements EntityListener {
     }
 
     public Entity getEntityWithID(long id){
-        for(Vector<Entity> entitiesInMap : entitiesInMaps.values()){
-            for(Entity e : entitiesInMap){
-                if(Mappers.idM.get(e).id == id){
-                    return e;
-                }
-            }
-        }
-        return null;
+        return entityIDs.get(id);
     }
 
     public Vector<String> getEntitiesAsString(){
-        Vector<String> entitiesAsString = new Vector<String>();
+        Vector<String> entitiesAsString = new Vector<>();
         for(String mapName : entitiesInMaps.keySet()) {
             for (Entity e : entitiesInMaps.get(mapName)) {
                 entitiesAsString.add(EntityToString.convert(e));
@@ -73,7 +67,7 @@ public class WorldData implements EntityListener {
         Set<Long> updateIDList = updatedEntities.keySet();
 
         //Loop through all entities sent in update
-        for(long id : updateIDList){
+            for(long id : updateIDList){
             //The changed local entity
             Entity e = getEntityWithID(id);
             //Get the new components
@@ -87,6 +81,7 @@ public class WorldData implements EntityListener {
                 }
                 addEntity(newEntity);
             }else{
+                //FIXME try update components without removing them
                 //remove all components
                 e.removeAll();
                 //Add new components
@@ -100,7 +95,7 @@ public class WorldData implements EntityListener {
         //Copy id list to avoid ConcurrentModificationException caused by calls to entityRemoved(Entity e)
         //FIXME is this a good idea
         Vector<Long> idListCopy = new Vector<>();
-        for(long id : entityIDs){
+        for(long id : entityIDs.keySet()){
             idListCopy.add(id);
         }
 
@@ -117,6 +112,7 @@ public class WorldData implements EntityListener {
         }
 
     }
+
 
     protected void createEntity(String mapName, MapObject obj){
         System.out.println("Name: " + obj.getName() + " Type: " + obj.getType());
@@ -138,9 +134,18 @@ public class WorldData implements EntityListener {
         addEntity(newEntity);
     }
 
+
+
     public void addEntity(Entity e){
-        engine.addEntity(e);
+        //If entity doesnt have a networkID we give it one
+        if(e.getComponent(NetworkID.class) == null){
+            e.add(new NetworkID(networkIDCounter));
+            networkIDCounter++;
+            System.out.println("Giving entity a network ID, this should never be called on client");
+        }
+    engine.addEntity(e);
     }
+
 
     public void removeAllEntities(){
         engine.removeAllEntities();
@@ -172,10 +177,11 @@ public class WorldData implements EntityListener {
             playerList.add(Mappers.nameM.get(entity).name);
         }
 
-        entityIDs.add(Mappers.idM.get(entity).id);
+        entityIDs.put(Mappers.idM.get(entity).id, entity);
+        //entityIDs.add(Mappers.idM.get(entity).id);
 
         if(entitiesInMaps.get(map) == null){
-            Vector<Entity> entities = new Vector<Entity>();
+            Vector<Entity> entities = new Vector<>();
             entities.add(entity);
             entitiesInMaps.put(map,entities);
         }else{

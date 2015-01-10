@@ -4,8 +4,6 @@ import java.util.HashMap;
 import java.util.Vector;
 
 import com.badlogic.ashley.core.Component;
-import com.badlogic.ashley.core.Entity;
-import com.badlogic.ashley.utils.ImmutableArray;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryonet.EndPoint;
 import com.juniper.game.components.*;
