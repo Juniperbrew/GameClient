@@ -32,6 +32,7 @@ public class UpdateEntityOnServerSystem extends IteratingSystem {
             update.networkID = id;
             update.component = pos;
             client.sendTCP(update);
+            player.hasMoved = false;
         }
     }
 }

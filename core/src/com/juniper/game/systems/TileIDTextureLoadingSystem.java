@@ -20,7 +20,9 @@ public class TileIDTextureLoadingSystem extends IteratingSystem {
 
     @Override
     protected void processEntity(Entity entity, float deltaTime) {
-        int tileID = Mappers.tileidM.get(entity).id;
+        //FIXME it seems the libtiled tileIDs start from 0 while in libgdx they start from 1 matching the .tmx file
+        //so we need to add 1 to the tileID sent from the server which used libtiled to read the value
+        int tileID = Mappers.tileidM.get(entity).id+1;
         TextureRegion texture = gdxWorldData.getActiveMap().getTileSets().getTile(tileID).getTextureRegion();
 
         //Engine seems to notify listeners that an entity has been added when the components change

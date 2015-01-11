@@ -5,16 +5,22 @@ import com.badlogic.ashley.core.Family;
 import com.badlogic.ashley.systems.IteratingSystem;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.juniper.game.Mappers;
 import com.juniper.game.components.Position;
 
 public class PlayerControlSystem extends IteratingSystem {
-    public PlayerControlSystem(Family family) {
+
+    private OrthographicCamera camera;
+
+    public PlayerControlSystem(Family family, OrthographicCamera camera) {
         super(family);
+        this.camera = camera;
     }
 
-    public PlayerControlSystem(Family family, int priority) {
+    public PlayerControlSystem(Family family, OrthographicCamera camera, int priority) {
         super(family, priority);
+        this.camera = camera;
     }
 
     @Override
@@ -42,6 +48,7 @@ public class PlayerControlSystem extends IteratingSystem {
         pos.y += deltaY;
 
         Mappers.playerM.get(entity).hasMoved = true;
-        System.out.println("Player moved to " + pos.x + "," + pos.y);
+
+        camera.position.set(pos.x, pos.y, 0);
     }
 }

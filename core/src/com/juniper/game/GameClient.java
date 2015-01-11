@@ -309,14 +309,21 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		tiledMapRenderer = new OrthogonalTiledMapRenderer(gdxWorldData.getActiveMap());
 		camera.setToOrtho(false,w,h);
 
+		//Setup logic systems
+
 		//Setup rendering systems
 		TextureRenderingSystem textureRenderingSystem = new TextureRenderingSystem(Family.all(Sprite.class).get(), tiledMapRenderer.getBatch());
-		gdxWorldData.addSystem(textureRenderingSystem);
 		gdxWorldData.addFamilyListener(Family.all(Sprite.class).get(), textureRenderingSystem);
-		gdxWorldData.addSystem(new ShapeRenderingSystem(Family.all(Position.class).get(), shapeRenderer));
+
+		gdxWorldData.addSystem(new PlayerControlSystem(Family.all(Player.class).get(), camera));
+		gdxWorldData.addSystem(new MapRenderSystem(tiledMapRenderer,camera));
+		gdxWorldData.addSystem(new ShapeRenderingSystem(Family.all(Position.class).exclude(Sprite.class).get(), shapeRenderer,camera));
+		gdxWorldData.addSystem(textureRenderingSystem);
+
 		gdxWorldData.addSystem(new TileIDTextureLoadingSystem(Family.all(TileID.class).get(),gdxWorldData));
 
-		gdxWorldData.addSystem(new PlayerControlSystem(Family.all(Player.class).get()));
+
+		gdxWorldData.addSystem(new UpdateEntityOnServerSystem(Family.all(Player.class).get(),client));
 		gdxWorldData.addSystem(new TimedSystem(1,gdxWorldData));
 
 		MapProperties mapProperties = gdxWorldData.getActiveMap().getProperties();
@@ -426,21 +433,6 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		if(tiledMapRenderer != null){
 
 			float delta = Gdx.graphics.getDeltaTime(); //seconds
-			float deltaX = 0;
-			float deltaY = 0;
-			int scrollSpeed = 1000; //pixels per sec
-
-			if(up) deltaY += scrollSpeed*delta;
-			if(down) deltaY -= scrollSpeed*delta;
-			if(left) deltaX -= scrollSpeed*delta;
-			if(right) deltaX += scrollSpeed*delta;
-
-			camera.translate(deltaX,deltaY);
-			camera.update();
-			tiledMapRenderer.setView(camera);
-			tiledMapRenderer.render();
-
-			shapeRenderer.setProjectionMatrix(camera.combined);
 			gdxWorldData.updateWorld(delta);
 		}
 
