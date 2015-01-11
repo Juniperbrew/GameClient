@@ -1,15 +1,13 @@
 package com.juniper.game;
 
 import com.badlogic.ashley.core.Component;
-import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.Family;
 import com.badlogic.gdx.*;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.maps.tiled.TiledMap;
-import com.badlogic.gdx.maps.tiled.TmxMapLoader;
+import com.badlogic.gdx.maps.MapProperties;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
@@ -22,9 +20,12 @@ import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import com.juniper.game.components.Position;
+import com.juniper.game.components.Sprite;
 import com.juniper.game.network.Network;
 import com.juniper.game.network.Network.*;
-import com.juniper.game.systems.RenderingSystem;
+import com.juniper.game.systems.TimedSystem;
+import com.juniper.game.systems.ShapeRenderingSystem;
+import com.juniper.game.systems.TextureRenderingSystem;
 
 import java.io.IOException;
 import java.util.*;
@@ -57,7 +58,7 @@ public class GameClient implements ApplicationListener, InputProcessor {
 
 	//World state
 	private List<String> nameList;
-	WorldData worldData;
+	GdxWorldData gdxWorldData;
 	String mapName;
 	HashMap<Long,Component[]> pendingEntitySync;
 
@@ -70,10 +71,7 @@ public class GameClient implements ApplicationListener, InputProcessor {
 
 	@Override
 	public void create () {
-		worldData = new WorldData(new Engine(),null);
-
 		shapeRenderer = new ShapeRenderer();
-		worldData.addSystem(new RenderingSystem(Family.all(Position.class).get(), shapeRenderer));
 		batch = new SpriteBatch();
 		skin = new Skin(Gdx.files.internal("data/uiskin.json"));
 		stage = new Stage(new ScreenViewport(), batch);
@@ -307,9 +305,19 @@ public class GameClient implements ApplicationListener, InputProcessor {
 	}
 
 	private void loadMap(String mapName){
-		TiledMap tiledMap = new TmxMapLoader().load(mapName);
-		tiledMapRenderer = new OrthogonalTiledMapRenderer(tiledMap);
+		gdxWorldData = GdxWorldLoader.loadWorld(mapName);
+		tiledMapRenderer = new OrthogonalTiledMapRenderer(gdxWorldData.getActiveMap());
+		gdxWorldData.addSystem(new ShapeRenderingSystem(Family.all(Position.class).get(), shapeRenderer));
+		gdxWorldData.addSystem(new TextureRenderingSystem(Family.all(Sprite.class).get(), tiledMapRenderer.getBatch()));
+		gdxWorldData.addSystem(new TimedSystem(1,gdxWorldData));
 		camera.setToOrtho(false,w,h);
+
+		MapProperties mapProperties = gdxWorldData.getActiveMap().getProperties();
+		Iterator<String> keys = mapProperties.getKeys();
+		while(keys.hasNext()){
+			String key = keys.next();
+			System.out.println(key + ": " + mapProperties.get(key));
+		}
 	}
 
 	private void addChatLine(String line){
@@ -404,8 +412,9 @@ public class GameClient implements ApplicationListener, InputProcessor {
 
 		//Sync entities with server
 		if(pendingEntitySync != null){
-			worldData.updateEntities(pendingEntitySync);
-			worldData.printEntities();
+			gdxWorldData.updateEntities(pendingEntitySync);
+			//Try to give entities with an associated tile the tile texture
+			gdxWorldData.matchEntityNamesToTextures();
 			pendingEntitySync = null;
 		}
 
@@ -427,10 +436,7 @@ public class GameClient implements ApplicationListener, InputProcessor {
 			tiledMapRenderer.render();
 
 			shapeRenderer.setProjectionMatrix(camera.combined);
-			shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-			worldData.updateWorld(delta);
-			shapeRenderer.end();
-
+			gdxWorldData.updateWorld(delta);
 		}
 
 		//Draw GUI

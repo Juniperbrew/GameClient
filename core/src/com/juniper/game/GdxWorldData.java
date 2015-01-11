@@ -1,30 +1,45 @@
 package com.juniper.game;
 
 import com.badlogic.ashley.core.*;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.maps.MapLayer;
+import com.badlogic.gdx.maps.MapObject;
+import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.juniper.game.components.*;
-import tiled.core.Map;
-import tiled.core.MapObject;
 import com.juniper.game.util.EntityToString;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.Vector;
 
-public class WorldData implements EntityListener {
+
+public class GdxWorldData implements EntityListener {
 
     private Engine engine;
-    public HashMap<String,Map> allMaps;
 	public HashMap<Long,Entity> entityIDs;
-    public HashMap<String,Vector<Entity>> entitiesInMaps;
+    public Vector<Entity> entities;
     public Vector<String> playerList;
+    HashMap<String,TextureRegion> entityNameToTextureMapping;
+    private TiledMap map;
+    public MapLayer objectLayer;
 
     private long networkIDCounter;
 
-    public WorldData(Engine engine, HashMap<String, Map> allMaps){
+    public GdxWorldData(Engine engine){
         this.engine = engine;
         engine.addEntityListener(this);
-        this.allMaps = allMaps;
-        entitiesInMaps = new HashMap<>();
+        entities = new Vector<>();
         entityIDs = new HashMap<>();
         playerList = new Vector<>();
+        entityNameToTextureMapping = new HashMap<>();
+    }
+
+    public void setActiveMap(TiledMap map){
+        this.map = map;
+    }
+
+    public TiledMap getActiveMap(){
+        return map;
     }
 
     public void addSystem(EntitySystem system){
@@ -35,17 +50,16 @@ public class WorldData implements EntityListener {
         return entityIDs.size();
     }
 
-    public Vector<Entity> getEntitiesInMap(String mapName){
-        return entitiesInMaps.get(mapName);
+    public Vector<Entity> getEntities(){
+        return entities;
     }
 
     public void printEntities(){
-        for(String mapName : entitiesInMaps.keySet()){
-            System.out.println(mapName + " contains following entities: ");
-            for(Entity entity : entitiesInMaps.get(mapName)){
-                System.out.println(EntityToString.convert(entity));
-            }
+        System.out.println("###-------------------------------------------------------------###");
+        for(Entity entity : entities){
+            System.out.println(EntityToString.convert(entity));
         }
+        System.out.println("###-------------------------------------------------------------###");
     }
 
     public Entity getEntityWithID(long id){
@@ -54,10 +68,8 @@ public class WorldData implements EntityListener {
 
     public Vector<String> getEntitiesAsString(){
         Vector<String> entitiesAsString = new Vector<>();
-        for(String mapName : entitiesInMaps.keySet()) {
-            for (Entity e : entitiesInMaps.get(mapName)) {
-                entitiesAsString.add(EntityToString.convert(e));
-            }
+        for (Entity e : entities) {
+            entitiesAsString.add(EntityToString.convert(e));
         }
         return entitiesAsString;
     }
@@ -81,12 +93,18 @@ public class WorldData implements EntityListener {
                 }
                 addEntity(newEntity);
             }else{
-                //FIXME try update components without removing them
-                //remove all components
-                e.removeAll();
-                //Add new components
+                //FIXME trying to update components instead of replacing, might cause bugs now
+                //Update components
                 for(Component updatedComponent : updatedComponents){
-                    e.add(updatedComponent);
+                    if(updatedComponent instanceof Position){
+                        Position pos = Mappers.positionM.get(e);
+                        pos.x = ((Position) updatedComponent).x;
+                        pos.y = ((Position) updatedComponent).y;
+                    }else if(updatedComponent instanceof MapName){
+                        Mappers.mapM.get(e).map = ((MapName) updatedComponent).map;
+                    }else if(updatedComponent instanceof Name){
+                        Mappers.nameM.get(e).name = ((Name) updatedComponent).name;
+                    }
                 }
             }
         }
@@ -113,27 +131,31 @@ public class WorldData implements EntityListener {
 
     }
 
-
-    protected void createEntity(String mapName, MapObject obj){
-        System.out.println("Name: " + obj.getName() + " Type: " + obj.getType());
-        Properties entityProperties = obj.getProperties();
-        entityProperties.list(System.out);
-        System.out.println();
-
-        Entity newEntity = new Entity();
-        newEntity.add(new Name(obj.getName()));
-        newEntity.add(new MapName(mapName));
-        newEntity.add(new Position(obj.getX(), obj.getY()));
-
-        if(entityProperties.containsKey("health")){
-            int health = Integer.parseInt(entityProperties.getProperty("health"));
-            newEntity.add(new Health(health));
-        }
-
-
-        addEntity(newEntity);
+    public void addEntityNameToTextureMapping(MapObject obj, TextureRegion texture, int gid){
+        System.out.println("Mapping entities named " + obj.getName() + " to gid:" + gid);
+        entityNameToTextureMapping.put(obj.getName(),texture);
     }
 
+
+    /**If client just loaded a map we try to give entities with tiles associated with them a texture
+     This only happens once after the client loads a map so if the entities sent from server dont
+     match the map or is otherwise lacking for some reason this probably fails and client needs
+     to reload the map for another try. Entity names are used as identifiers so if there exists
+     multiple entities with same name the results are probably unexpected.*/
+    public void matchEntityNamesToTextures(){
+        if(entityNameToTextureMapping.isEmpty()){
+            return;
+        }
+        System.out.println("Mapping tile texture to entities.");
+        for(Entity e : entities){
+            String name = Mappers.nameM.get(e).name;
+            if(entityNameToTextureMapping.containsKey(name)){
+                e.add(new Sprite(entityNameToTextureMapping.get(name)));
+                System.out.println("Found texture for " + name);
+            }
+        }
+        entityNameToTextureMapping.clear();
+    }
 
 
     public void addEntity(Entity e){
@@ -152,7 +174,7 @@ public class WorldData implements EntityListener {
         networkIDCounter = 0;
 
         entityIDs.clear();
-        entitiesInMaps.clear();
+        entities.clear();
 
     }
 
@@ -165,13 +187,6 @@ public class WorldData implements EntityListener {
         String map = Mappers.mapM.get(entity).map;
         System.out.println("Added " + EntityToString.convert(entity) + " to map " + map);
 
-        //If entity doesnt have a networkID we give it one
-        if(entity.getComponent(NetworkID.class) == null){
-            entity.add(new NetworkID(networkIDCounter));
-            networkIDCounter++;
-            System.out.println("Giving entity a network ID, this should never be called on client");
-        }
-
         //If entity is player we add his name to playerlist
         if(entity.getComponent(Player.class) != null){
             playerList.add(Mappers.nameM.get(entity).name);
@@ -180,13 +195,7 @@ public class WorldData implements EntityListener {
         entityIDs.put(Mappers.idM.get(entity).id, entity);
         //entityIDs.add(Mappers.idM.get(entity).id);
 
-        if(entitiesInMaps.get(map) == null){
-            Vector<Entity> entities = new Vector<>();
-            entities.add(entity);
-            entitiesInMaps.put(map,entities);
-        }else{
-            entitiesInMaps.get(map).add(entity);
-        }
+        entities.add(entity);
     }
 
 	@Override
@@ -201,11 +210,6 @@ public class WorldData implements EntityListener {
         if(entity.getComponent(Player.class) != null){
             playerList.remove(Mappers.nameM.get(entity).name);
         }
-
-        if(entitiesInMaps.get(map) == null){
-            System.out.println("Tried to remove entity from a map that isn't listed this shouldnt happen");
-        }else{
-            entitiesInMaps.get(map).remove(entity);
-        }
+        entities.remove(entity);
 	}
 }
