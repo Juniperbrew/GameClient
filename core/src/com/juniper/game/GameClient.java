@@ -19,15 +19,13 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
-import com.juniper.game.components.Gid;
+import com.juniper.game.components.TileID;
+import com.juniper.game.components.Player;
 import com.juniper.game.components.Position;
 import com.juniper.game.components.Sprite;
 import com.juniper.game.network.Network;
 import com.juniper.game.network.Network.*;
-import com.juniper.game.systems.GidTextureLoadingSystem;
-import com.juniper.game.systems.TimedSystem;
-import com.juniper.game.systems.ShapeRenderingSystem;
-import com.juniper.game.systems.TextureRenderingSystem;
+import com.juniper.game.systems.*;
 
 import java.io.IOException;
 import java.util.*;
@@ -316,8 +314,9 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		gdxWorldData.addSystem(textureRenderingSystem);
 		gdxWorldData.addFamilyListener(Family.all(Sprite.class).get(), textureRenderingSystem);
 		gdxWorldData.addSystem(new ShapeRenderingSystem(Family.all(Position.class).get(), shapeRenderer));
-		gdxWorldData.addSystem(new GidTextureLoadingSystem(Family.all(Gid.class).get(),gdxWorldData));
+		gdxWorldData.addSystem(new TileIDTextureLoadingSystem(Family.all(TileID.class).get(),gdxWorldData));
 
+		gdxWorldData.addSystem(new PlayerControlSystem(Family.all(Player.class).get()));
 		gdxWorldData.addSystem(new TimedSystem(1,gdxWorldData));
 
 		MapProperties mapProperties = gdxWorldData.getActiveMap().getProperties();

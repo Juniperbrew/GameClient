@@ -3,7 +3,6 @@ package com.juniper.game;
 import com.badlogic.ashley.core.*;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.maps.MapLayer;
-import com.badlogic.gdx.maps.MapObject;
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.juniper.game.components.*;
 import com.juniper.game.util.EntityToString;
@@ -165,7 +164,7 @@ public class GdxWorldData implements EntityListener {
         System.out.println("Added " + EntityToString.convert(entity) + " to map " + map);
 
         //Add to id list
-        entityIDs.put(Mappers.idM.get(entity).id, entity);
+        entityIDs.put(Mappers.networkidM.get(entity).id, entity);
 
         //If entity is player we add his name to playerlist
         if(entity.getComponent(Player.class) != null){
@@ -181,7 +180,7 @@ public class GdxWorldData implements EntityListener {
         System.out.println("Removed " + EntityToString.convert(entity) + " from map " + map);
 
         //Remove from id list
-        entityIDs.remove(Mappers.idM.get(entity).id);
+        entityIDs.remove(Mappers.networkidM.get(entity).id);
 
         //If entity is player we remove him from playerlist
         if(entity.getComponent(Player.class) != null){

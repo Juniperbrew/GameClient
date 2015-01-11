@@ -8,8 +8,8 @@ public class Mappers {
     public static final ComponentMapper<Velocity> velocityM = ComponentMapper.getFor(Velocity.class);
     public static final ComponentMapper<Name> nameM = ComponentMapper.getFor(Name.class);
     public static final ComponentMapper<MapName> mapM = ComponentMapper.getFor(MapName.class);
-    public static final ComponentMapper<NetworkID> idM = ComponentMapper.getFor(NetworkID.class);
+    public static final ComponentMapper<NetworkID> networkidM = ComponentMapper.getFor(NetworkID.class);
     public static final ComponentMapper<Player> playerM = ComponentMapper.getFor(Player.class);
     public static final ComponentMapper<Sprite> spriteM = ComponentMapper.getFor(Sprite.class);
-    public static final ComponentMapper<Gid> gidM = ComponentMapper.getFor(Gid.class);
+    public static final ComponentMapper<TileID> tileidM = ComponentMapper.getFor(TileID.class);
 }

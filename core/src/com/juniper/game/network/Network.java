@@ -35,7 +35,9 @@ public class Network {
 		kryo.register(java.util.HashMap.class);
 		kryo.register(Register.class);
 		kryo.register(SyncPlayerList.class);
-		kryo.register(Gid.class);
+		kryo.register(TileID.class);
+		kryo.register(UpdateEntity.class);
+		kryo.register(UpdateComponent.class);
     }
 
 	static public class SyncPlayerList{
@@ -45,24 +47,34 @@ public class Network {
 	static public class Register {
 		public String connectionName;
 	}
-	
+
 	static public class Message{
 		public String text;
+	}
+
+	static public class UpdateEntity{
+		public long networkID;
+		public Component[] entity;
+	}
+
+	static public class UpdateComponent{
+		public long networkID;
+		public Component component;
 	}
 
 	static public class SyncEntities{
 		public HashMap<Long,Component[]> entities;
 	}
-	
+
 	static public class MoveTo{
 		public int x;
 		public int y;
 	}
-	
+
 	static public class GoToMap{
 		public String mapName;
 	}
-	
+
 	static public class Spawn{
 		public String name;
 		public String mapName;

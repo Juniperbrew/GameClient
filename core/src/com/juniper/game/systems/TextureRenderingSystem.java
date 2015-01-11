@@ -1,5 +1,6 @@
 package com.juniper.game.systems;
 
+
 import com.badlogic.ashley.core.*;
 import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.graphics.g2d.Batch;
@@ -9,7 +10,7 @@ import com.juniper.game.components.Position;
 
 import java.util.Vector;
 
-public class TextureRenderingSystem extends EntitySystem implements EntityListener{
+public class TextureRenderingSystem extends EntitySystem implements EntityListener {
 
     private Batch batch;
     private Family family;
