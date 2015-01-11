@@ -24,7 +24,6 @@ public class Network {
 
 		kryo.register(com.badlogic.ashley.core.Component[].class);
 		kryo.register(Component.class);
-		kryo.register(com.badlogic.gdx.utils.Array.class);
 		kryo.register(Object[].class);
 		kryo.register(Name.class);
 		kryo.register(MapName.class);
@@ -36,6 +35,7 @@ public class Network {
 		kryo.register(java.util.HashMap.class);
 		kryo.register(Register.class);
 		kryo.register(SyncPlayerList.class);
+		kryo.register(Gid.class);
     }
 
 	static public class SyncPlayerList{

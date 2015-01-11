@@ -11,4 +11,5 @@ public class Mappers {
     public static final ComponentMapper<NetworkID> idM = ComponentMapper.getFor(NetworkID.class);
     public static final ComponentMapper<Player> playerM = ComponentMapper.getFor(Player.class);
     public static final ComponentMapper<Sprite> spriteM = ComponentMapper.getFor(Sprite.class);
+    public static final ComponentMapper<Gid> gidM = ComponentMapper.getFor(Gid.class);
 }

@@ -103,11 +103,6 @@ public class GdxWorldLoader {
 				collisionCount++;
 			}else if(objectType.equalsIgnoreCase("entity")){
 				entityCount++;
-				if(objProperties.get("gid")!=null){
-					int gid = (int)objProperties.get("gid");
-					TextureRegion texture = tileSet.getTile(gid).getTextureRegion();
-					gdxWorldData.addEntityNameToTextureMapping(obj, texture, gid);
-				}
 			}else if(objectType.equalsIgnoreCase("message")){
 				messageCount++;
 			}else if(objectType.equalsIgnoreCase("teleport")){

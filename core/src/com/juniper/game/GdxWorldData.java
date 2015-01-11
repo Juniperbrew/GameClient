@@ -34,6 +34,10 @@ public class GdxWorldData implements EntityListener {
         entityNameToTextureMapping = new HashMap<>();
     }
 
+    public void addFamilyListener(Family family, EntityListener listener){
+        engine.addEntityListener(family, listener);
+    }
+
     public void setActiveMap(TiledMap map){
         this.map = map;
     }
@@ -131,33 +135,6 @@ public class GdxWorldData implements EntityListener {
 
     }
 
-    public void addEntityNameToTextureMapping(MapObject obj, TextureRegion texture, int gid){
-        System.out.println("Mapping entities named " + obj.getName() + " to gid:" + gid);
-        entityNameToTextureMapping.put(obj.getName(),texture);
-    }
-
-
-    /**If client just loaded a map we try to give entities with tiles associated with them a texture
-     This only happens once after the client loads a map so if the entities sent from server dont
-     match the map or is otherwise lacking for some reason this probably fails and client needs
-     to reload the map for another try. Entity names are used as identifiers so if there exists
-     multiple entities with same name the results are probably unexpected.*/
-    public void matchEntityNamesToTextures(){
-        if(entityNameToTextureMapping.isEmpty()){
-            return;
-        }
-        System.out.println("Mapping tile texture to entities.");
-        for(Entity e : entities){
-            String name = Mappers.nameM.get(e).name;
-            if(entityNameToTextureMapping.containsKey(name)){
-                e.add(new Sprite(entityNameToTextureMapping.get(name)));
-                System.out.println("Found texture for " + name);
-            }
-        }
-        entityNameToTextureMapping.clear();
-    }
-
-
     public void addEntity(Entity e){
         //If entity doesnt have a networkID we give it one
         if(e.getComponent(NetworkID.class) == null){
@@ -187,14 +164,14 @@ public class GdxWorldData implements EntityListener {
         String map = Mappers.mapM.get(entity).map;
         System.out.println("Added " + EntityToString.convert(entity) + " to map " + map);
 
+        //Add to id list
+        entityIDs.put(Mappers.idM.get(entity).id, entity);
+
         //If entity is player we add his name to playerlist
         if(entity.getComponent(Player.class) != null){
             playerList.add(Mappers.nameM.get(entity).name);
         }
-
-        entityIDs.put(Mappers.idM.get(entity).id, entity);
-        //entityIDs.add(Mappers.idM.get(entity).id);
-
+        //Add to entity list
         entities.add(entity);
     }
 
@@ -210,6 +187,7 @@ public class GdxWorldData implements EntityListener {
         if(entity.getComponent(Player.class) != null){
             playerList.remove(Mappers.nameM.get(entity).name);
         }
+        //Remove from entity list
         entities.remove(entity);
 	}
 }

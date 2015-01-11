@@ -19,10 +19,12 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
+import com.juniper.game.components.Gid;
 import com.juniper.game.components.Position;
 import com.juniper.game.components.Sprite;
 import com.juniper.game.network.Network;
 import com.juniper.game.network.Network.*;
+import com.juniper.game.systems.GidTextureLoadingSystem;
 import com.juniper.game.systems.TimedSystem;
 import com.juniper.game.systems.ShapeRenderingSystem;
 import com.juniper.game.systems.TextureRenderingSystem;
@@ -307,10 +309,16 @@ public class GameClient implements ApplicationListener, InputProcessor {
 	private void loadMap(String mapName){
 		gdxWorldData = GdxWorldLoader.loadWorld(mapName);
 		tiledMapRenderer = new OrthogonalTiledMapRenderer(gdxWorldData.getActiveMap());
-		gdxWorldData.addSystem(new ShapeRenderingSystem(Family.all(Position.class).get(), shapeRenderer));
-		gdxWorldData.addSystem(new TextureRenderingSystem(Family.all(Sprite.class).get(), tiledMapRenderer.getBatch()));
-		gdxWorldData.addSystem(new TimedSystem(1,gdxWorldData));
 		camera.setToOrtho(false,w,h);
+
+		//Setup rendering systems
+		TextureRenderingSystem textureRenderingSystem = new TextureRenderingSystem(Family.all(Sprite.class).get(), tiledMapRenderer.getBatch());
+		gdxWorldData.addSystem(textureRenderingSystem);
+		gdxWorldData.addFamilyListener(Family.all(Sprite.class).get(), textureRenderingSystem);
+		gdxWorldData.addSystem(new ShapeRenderingSystem(Family.all(Position.class).get(), shapeRenderer));
+		gdxWorldData.addSystem(new GidTextureLoadingSystem(Family.all(Gid.class).get(),gdxWorldData));
+
+		gdxWorldData.addSystem(new TimedSystem(1,gdxWorldData));
 
 		MapProperties mapProperties = gdxWorldData.getActiveMap().getProperties();
 		Iterator<String> keys = mapProperties.getKeys();
@@ -413,8 +421,6 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		//Sync entities with server
 		if(pendingEntitySync != null){
 			gdxWorldData.updateEntities(pendingEntitySync);
-			//Try to give entities with an associated tile the tile texture
-			gdxWorldData.matchEntityNamesToTextures();
 			pendingEntitySync = null;
 		}
 

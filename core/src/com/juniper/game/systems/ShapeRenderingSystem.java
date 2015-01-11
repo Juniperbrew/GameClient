@@ -24,7 +24,6 @@ public class ShapeRenderingSystem extends IteratingSystem {
     @Override
     protected void processEntity(Entity entity, float deltaTime) {
         Position position = Mappers.positionM.get(entity);
-
         //Dont draw rectangle if the entity has a sprite
         if(Mappers.spriteM.get(entity) == null){
             //FIXME figure out a way to batch these calls
