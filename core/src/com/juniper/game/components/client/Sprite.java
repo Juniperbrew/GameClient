@@ -1,4 +1,4 @@
-package com.juniper.game.components;
+package com.juniper.game.components.client;
 
 import com.badlogic.ashley.core.Component;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;

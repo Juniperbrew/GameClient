@@ -1,7 +1,10 @@
 package com.juniper.game;
 
 import com.badlogic.ashley.core.ComponentMapper;
-import com.juniper.game.components.*;
+import com.juniper.game.components.client.AnimatedSprite;
+import com.juniper.game.components.client.PlayerControlled;
+import com.juniper.game.components.client.Sprite;
+import com.juniper.game.components.shared.*;
 
 public class Mappers {
     public static final ComponentMapper<Position> positionM = ComponentMapper.getFor(Position.class);

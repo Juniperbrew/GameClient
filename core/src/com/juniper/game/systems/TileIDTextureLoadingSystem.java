@@ -6,8 +6,8 @@ import com.badlogic.ashley.systems.IteratingSystem;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.juniper.game.GdxWorldData;
 import com.juniper.game.Mappers;
-import com.juniper.game.components.TileID;
-import com.juniper.game.components.Sprite;
+import com.juniper.game.components.shared.TileID;
+import com.juniper.game.components.client.Sprite;
 
 public class TileIDTextureLoadingSystem extends IteratingSystem {
 

@@ -7,7 +7,8 @@ import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.maps.MapLayer;
 import com.badlogic.gdx.maps.tiled.TiledMap;
-import com.juniper.game.components.*;
+import com.juniper.game.components.client.AnimatedSprite;
+import com.juniper.game.components.shared.*;
 import com.juniper.game.util.EntityToString;
 
 import java.util.HashMap;

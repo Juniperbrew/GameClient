@@ -5,9 +5,8 @@ import com.badlogic.ashley.core.Family;
 import com.badlogic.ashley.systems.IteratingSystem;
 import com.esotericsoftware.kryonet.Client;
 import com.juniper.game.Mappers;
-import com.juniper.game.components.Player;
-import com.juniper.game.components.PlayerControlled;
-import com.juniper.game.components.Position;
+import com.juniper.game.components.client.PlayerControlled;
+import com.juniper.game.components.shared.Position;
 import com.juniper.game.network.Network.*;
 
 public class UpdateEntityOnServerSystem extends IteratingSystem {

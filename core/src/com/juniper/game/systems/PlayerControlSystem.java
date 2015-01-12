@@ -7,8 +7,8 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.juniper.game.Mappers;
-import com.juniper.game.components.AnimatedSprite;
-import com.juniper.game.components.Position;
+import com.juniper.game.components.client.AnimatedSprite;
+import com.juniper.game.components.shared.Position;
 
 public class PlayerControlSystem extends IteratingSystem {
 

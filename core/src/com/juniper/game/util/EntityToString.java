@@ -3,7 +3,7 @@ package com.juniper.game.util;
 import com.badlogic.ashley.core.Component;
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.ashley.utils.ImmutableArray;
-import com.juniper.game.components.*;
+import com.juniper.game.components.shared.*;
 
 public class EntityToString {
 

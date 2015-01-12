@@ -6,8 +6,8 @@ import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.juniper.game.Mappers;
-import com.juniper.game.components.AnimatedSprite;
-import com.juniper.game.components.Position;
+import com.juniper.game.components.client.AnimatedSprite;
+import com.juniper.game.components.shared.Position;
 
 import java.util.Vector;
 
