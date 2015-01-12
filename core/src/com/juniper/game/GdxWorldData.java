@@ -1,6 +1,9 @@
 package com.juniper.game;
 
 import com.badlogic.ashley.core.*;
+import com.badlogic.ashley.utils.ImmutableArray;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.maps.MapLayer;
 import com.badlogic.gdx.maps.tiled.TiledMap;
@@ -21,6 +24,7 @@ public class GdxWorldData implements EntityListener {
     HashMap<String,TextureRegion> entityNameToTextureMapping;
     private TiledMap map;
     public MapLayer objectLayer;
+    TextureAtlas textureAtlas;
 
     private long networkIDCounter;
 
@@ -30,7 +34,7 @@ public class GdxWorldData implements EntityListener {
         entities = new Vector<>();
         entityIDs = new HashMap<>();
         playerList = new Vector<>();
-        entityNameToTextureMapping = new HashMap<>();
+        textureAtlas = new TextureAtlas(Gdx.files.internal("data/spritesheetindexed.atlas"));
     }
 
     public void addFamilyListener(Family family, EntityListener listener){
@@ -77,15 +81,18 @@ public class GdxWorldData implements EntityListener {
         return entitiesAsString;
     }
 
+    public ImmutableArray<Entity> getEntitiesInFamily(Family family){
+        return engine.getEntitiesFor(family);
+    }
+
     public void updateEntities(HashMap<Long,Component[]> updatedEntities){
+        //FIXME this method really needs some work
 
         Set<Long> updateIDList = updatedEntities.keySet();
-
         //Loop through all entities sent in update
             for(long id : updateIDList){
             //The changed local entity
             Entity e = getEntityWithID(id);
-            //Get the new components
             Component[] updatedComponents = updatedEntities.get(id);
             if(e == null) {
                 //If the entity doesnt exist in local store we add it
@@ -100,13 +107,39 @@ public class GdxWorldData implements EntityListener {
                 //Update components
                 for(Component updatedComponent : updatedComponents){
                     if(updatedComponent instanceof Position){
-                        Position pos = Mappers.positionM.get(e);
-                        pos.x = ((Position) updatedComponent).x;
-                        pos.y = ((Position) updatedComponent).y;
+                        Position updatedPosition = (Position) updatedComponent;
+                        Position currentPosition = Mappers.positionM.get(e);
+                        //If the moved entity has an animation
+                        if(Mappers.animatedM.get(e) != null){
+                            //FIXME this seems like an awkwards way to animated networked sprites
+                            AnimatedSprite animatedSprite = Mappers.animatedM.get(e);
+                            if(updatedPosition.x > currentPosition.x){
+                                animatedSprite.setRotation(90);
+                                Mappers.animatedM.get(e).needsStateTimeUpdate = true;
+                            }else if(updatedPosition.x < currentPosition.x){
+                                animatedSprite.setRotation(270);
+                                Mappers.animatedM.get(e).needsStateTimeUpdate = true;
+                            }else if(updatedPosition.y > currentPosition.y){
+                                animatedSprite.setRotation(0);
+                                Mappers.animatedM.get(e).needsStateTimeUpdate = true;
+                            }else if(updatedPosition.y < currentPosition.y){
+                                animatedSprite.setRotation(180);
+                                Mappers.animatedM.get(e).needsStateTimeUpdate = true;
+                            }else{
+                                Mappers.animatedM.get(e).needsStateTimeUpdate = false;
+                            }
+                        }
+                        currentPosition.x = updatedPosition.x;
+                        currentPosition.y = updatedPosition.y;
                     }else if(updatedComponent instanceof MapName){
                         Mappers.mapM.get(e).map = ((MapName) updatedComponent).map;
                     }else if(updatedComponent instanceof Name){
                         Mappers.nameM.get(e).name = ((Name) updatedComponent).name;
+                    }else if(updatedComponent instanceof Player){
+                        //If a player doesn't have an animated component we add one
+                        if(Mappers.animatedM.get(e)==null){
+                            e.add(new AnimatedSprite(textureAtlas));
+                        }
                     }
                 }
             }

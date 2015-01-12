@@ -1,11 +1,14 @@
 package com.juniper.game;
 
 import com.badlogic.ashley.core.Component;
+import com.badlogic.ashley.core.Entity;
 import com.badlogic.ashley.core.Family;
+import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.*;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.maps.MapProperties;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
@@ -19,10 +22,7 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
-import com.juniper.game.components.TileID;
-import com.juniper.game.components.Player;
-import com.juniper.game.components.Position;
-import com.juniper.game.components.Sprite;
+import com.juniper.game.components.*;
 import com.juniper.game.network.Network;
 import com.juniper.game.network.Network.*;
 import com.juniper.game.systems.*;
@@ -61,6 +61,8 @@ public class GameClient implements ApplicationListener, InputProcessor {
 	GdxWorldData gdxWorldData;
 	String mapName;
 	HashMap<Long,Component[]> pendingEntitySync;
+	long playerNetworkID = -1;
+	Entity player;
 
 	//Game state
 	boolean mapChanged;
@@ -257,7 +259,6 @@ public class GameClient implements ApplicationListener, InputProcessor {
 			}
 
 			public void received(Connection connection, Object object) {
-
 				if (object instanceof Message) {
 					Message message = (Message)object;
 					System.out.println(message.text);
@@ -276,6 +277,15 @@ public class GameClient implements ApplicationListener, InputProcessor {
 					//FIXME is this the best way?
 					mapChanged = true;
 					mapName = ((GoToMap) object).mapName;
+				}else if(object instanceof Spawn){
+					Spawn spawn = (Spawn) object;
+					//Server confirms that we have spawned
+					mapChanged = true;
+					mapName = spawn.mapName;
+					playerNetworkID = spawn.networkID;
+					camera.position.set(spawn.x, spawn.y, 0);
+					mapChanged = true;
+
 				}
 			}
 		});
@@ -307,24 +317,6 @@ public class GameClient implements ApplicationListener, InputProcessor {
 	private void loadMap(String mapName){
 		gdxWorldData = GdxWorldLoader.loadWorld(mapName);
 		tiledMapRenderer = new OrthogonalTiledMapRenderer(gdxWorldData.getActiveMap());
-		camera.setToOrtho(false,w,h);
-
-		//Setup logic systems
-
-		//Setup rendering systems
-		TextureRenderingSystem textureRenderingSystem = new TextureRenderingSystem(Family.all(Sprite.class).get(), tiledMapRenderer.getBatch());
-		gdxWorldData.addFamilyListener(Family.all(Sprite.class).get(), textureRenderingSystem);
-
-		gdxWorldData.addSystem(new PlayerControlSystem(Family.all(Player.class).get(), camera));
-		gdxWorldData.addSystem(new MapRenderSystem(tiledMapRenderer,camera));
-		gdxWorldData.addSystem(new ShapeRenderingSystem(Family.all(Position.class).exclude(Sprite.class).get(), shapeRenderer,camera));
-		gdxWorldData.addSystem(textureRenderingSystem);
-
-		gdxWorldData.addSystem(new TileIDTextureLoadingSystem(Family.all(TileID.class).get(),gdxWorldData));
-
-
-		gdxWorldData.addSystem(new UpdateEntityOnServerSystem(Family.all(Player.class).get(),client));
-		gdxWorldData.addSystem(new TimedSystem(1,gdxWorldData));
 
 		MapProperties mapProperties = gdxWorldData.getActiveMap().getProperties();
 		Iterator<String> keys = mapProperties.getKeys();
@@ -362,9 +354,12 @@ public class GameClient implements ApplicationListener, InputProcessor {
 			if(command.equals("spawn")){
 				commandParsed = true;
 				try{
+					//Request a spawn from server, server might change spawn location
 					Spawn spawn = new Spawn();
 					spawn.name = scn.next();
 					spawn.mapName = scn.next();
+					spawn.x = 0;
+					spawn.y = 0;
 					client.sendTCP(spawn);
 				}catch(InputMismatchException e) {
 					addChatLine("arguments need to be strings");
@@ -428,6 +423,30 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		if(pendingEntitySync != null){
 			gdxWorldData.updateEntities(pendingEntitySync);
 			pendingEntitySync = null;
+		}
+
+		//This should only run once after spawn
+		if(playerNetworkID >= 0 && player == null){
+			player = gdxWorldData.getEntityWithID(playerNetworkID);
+			if(player == null){
+				return;
+			}
+			System.out.println("Initializing world");
+
+			player.add(new AnimatedSprite(new TextureAtlas(Gdx.files.internal("data/spritesheetindexed.atlas"))));
+			player.add(new PlayerControlled());
+
+			TextureRenderingSystem textureRenderingSystem = new TextureRenderingSystem(Family.one(Sprite.class,AnimatedSprite.class).get(), tiledMapRenderer.getBatch());
+			gdxWorldData.addFamilyListener(Family.one(Sprite.class, AnimatedSprite.class).get(), textureRenderingSystem);
+
+			gdxWorldData.addSystem(new PlayerControlSystem(Family.all(PlayerControlled.class).get(), camera));
+			gdxWorldData.addSystem(new MapRenderSystem(tiledMapRenderer,camera));
+			gdxWorldData.addSystem(new ShapeRenderingSystem(Family.all(Position.class).exclude(Sprite.class,AnimatedSprite.class).get(), shapeRenderer,camera));
+			gdxWorldData.addSystem(textureRenderingSystem);
+
+			gdxWorldData.addSystem(new TileIDTextureLoadingSystem(Family.all(TileID.class).get(),gdxWorldData));
+			gdxWorldData.addSystem(new UpdateEntityOnServerSystem(Family.all(PlayerControlled.class).get(),client));
+			gdxWorldData.addSystem(new TimedSystem(1,gdxWorldData));
 		}
 
 		if(tiledMapRenderer != null){

@@ -38,6 +38,7 @@ public class Network {
 		kryo.register(TileID.class);
 		kryo.register(UpdateEntity.class);
 		kryo.register(UpdateComponent.class);
+		//FIXME These caused a really annoying bug when server serialized a Player class with a boolean field while client Player class didnt have that
     }
 
 	static public class SyncPlayerList{
@@ -78,5 +79,8 @@ public class Network {
 	static public class Spawn{
 		public String name;
 		public String mapName;
+		public int x;
+		public int y;
+		public long networkID;
 	}
 }

@@ -12,4 +12,6 @@ public class Mappers {
     public static final ComponentMapper<Player> playerM = ComponentMapper.getFor(Player.class);
     public static final ComponentMapper<Sprite> spriteM = ComponentMapper.getFor(Sprite.class);
     public static final ComponentMapper<TileID> tileidM = ComponentMapper.getFor(TileID.class);
+    public static final ComponentMapper<AnimatedSprite> animatedM = ComponentMapper.getFor(AnimatedSprite.class);
+    public static final ComponentMapper<PlayerControlled> playerControlledM = ComponentMapper.getFor(PlayerControlled.class);
 }

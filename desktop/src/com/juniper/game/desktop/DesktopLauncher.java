@@ -7,8 +7,11 @@ import com.juniper.game.GameClient;
 public class DesktopLauncher {
 	public static void main (String[] arg) {
 		LwjglApplicationConfiguration config = new LwjglApplicationConfiguration();
-		config.width = 1600;
-		config.height = 900;
+		//.width = 1600;
+		//config.height = 900;
+		config.width = 800;
+		config.height = 450;
+
 		new LwjglApplication(new GameClient(), config);
 	}
 }

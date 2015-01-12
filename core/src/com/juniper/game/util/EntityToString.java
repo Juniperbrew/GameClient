@@ -35,7 +35,7 @@ public class EntityToString {
                 NetworkID networkID = (NetworkID) component;
                 networkIDString = ("NetworkID: " + networkID.id + " ");
             }else {
-                miscString.append(component.getClass() + " ");
+                miscString.append(component.getClass().getSimpleName() + " ");
             }
         }
         entityString

@@ -6,6 +6,7 @@ import com.badlogic.ashley.systems.IteratingSystem;
 import com.esotericsoftware.kryonet.Client;
 import com.juniper.game.Mappers;
 import com.juniper.game.components.Player;
+import com.juniper.game.components.PlayerControlled;
 import com.juniper.game.components.Position;
 import com.juniper.game.network.Network.*;
 
@@ -24,7 +25,7 @@ public class UpdateEntityOnServerSystem extends IteratingSystem {
 
     @Override
     protected void processEntity(Entity entity, float deltaTime) {
-        Player player = Mappers.playerM.get(entity);
+        PlayerControlled player = Mappers.playerControlledM.get(entity);
         if(player.hasMoved){
             UpdateComponent update = new UpdateComponent();
             Position pos = Mappers.positionM.get(entity);

@@ -6,6 +6,7 @@ import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.juniper.game.Mappers;
+import com.juniper.game.components.AnimatedSprite;
 import com.juniper.game.components.Position;
 
 import java.util.Vector;
@@ -32,6 +33,7 @@ public class TextureRenderingSystem extends EntitySystem implements EntityListen
         //FIXME can i somehow use ImmutableArray instead of Vector
         ImmutableArray<Entity> immutableEntities = engine.getEntitiesFor(family);
         for(Entity e : immutableEntities){
+            System.out.println("Entity (" + Mappers.nameM.get(e).name + ") added to texturerenderer");
             entities.add(e);
         }
     }
@@ -46,10 +48,22 @@ public class TextureRenderingSystem extends EntitySystem implements EntityListen
     public void update (float deltaTime) {
         for (Entity entity : entities) {
             Position position = Mappers.positionM.get(entity);
-            TextureRegion texture = Mappers.spriteM.get(entity).texture;
             //FIXME figure out a way to batch these calls
             batch.begin();
-            batch.draw(texture, position.x,position.y);
+            //If entity doesnt have sprite component it has a AnimatedSprite component
+            if(Mappers.spriteM.get(entity) != null) {
+                TextureRegion texture = Mappers.spriteM.get(entity).texture;
+                batch.draw(texture, position.x, position.y);
+            }else{
+                AnimatedSprite animation = Mappers.animatedM.get(entity);
+                if(animation.needsStateTimeUpdate){
+                    animation.addStateTime(deltaTime);
+                }else{
+                    animation.clearStateTime();
+                }
+                TextureRegion texture = animation.getKeyFrame();
+                batch.draw(texture, position.x, position.y);
+            }
             batch.end();
         }
     }
