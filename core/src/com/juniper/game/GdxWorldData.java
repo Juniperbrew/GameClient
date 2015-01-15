@@ -10,6 +10,7 @@ import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.juniper.game.components.client.AnimatedSprite;
 import com.juniper.game.components.client.Movement;
 import com.juniper.game.components.shared.*;
+import com.juniper.game.systems.ListeningEntitySystem;
 import com.juniper.game.util.EntityToString;
 
 import java.util.HashMap;
@@ -27,11 +28,13 @@ public class GdxWorldData implements EntityListener {
     private TiledMap map;
     public MapLayer objectLayer;
     TextureAtlas textureAtlas;
+    String mapName;
 
     private long networkIDCounter;
 
-    public GdxWorldData(Engine engine){
-        this.engine = engine;
+    public GdxWorldData(String mapName){
+        this.mapName = mapName;
+        engine = new Engine();
         engine.addEntityListener(this);
         entities = new Vector<>();
         entityIDs = new HashMap<>();
@@ -41,6 +44,23 @@ public class GdxWorldData implements EntityListener {
 
     public void addFamilyListener(Family family, EntityListener listener){
         engine.addEntityListener(family, listener);
+    }
+
+    public void toggleSystem(int index){
+        EntitySystem system = engine.getSystems().get(index);
+        if(system == null){
+            System.out.println("No system with index "+index+" in map "+mapName);
+            return;
+        }
+        system.setProcessing(!system.checkProcessing());
+        System.out.println(system + " is now " + (system.checkProcessing() ? " enabled." : " disabled."));
+    }
+
+    public void toggleAllSystems(boolean enabled){
+        for(EntitySystem system:engine.getSystems()){
+            system.setProcessing(enabled);
+        }
+        System.out.println((enabled?"Enabled ":"Disabled ")+" all systems on map "+mapName);
     }
 
     public void setActiveMap(TiledMap map){
@@ -199,6 +219,39 @@ public class GdxWorldData implements EntityListener {
 
     public void updateWorld(float deltaTime){
         engine.update(deltaTime);
+    }
+
+    public void dumpData(){
+
+        /*
+        public HashMap<Long,Entity> entityIDs;
+        public Vector<Entity> entities;
+        public Vector<String> playerList;
+        HashMap<String,TextureRegion> entityNameToTextureMapping;
+        private TiledMap map;
+        public MapLayer objectLayer;
+        TextureAtlas textureAtlas;*/
+
+
+        System.out.println("-----------------------------------------");
+        System.out.println("#"+mapName+": "+engine);
+        ImmutableArray<EntitySystem> systems = engine.getSystems();
+        for (int i = 0; i < systems.size(); i++) {
+            EntitySystem system = systems.get(i);
+            System.out.println("  "+i+"#"+system+": "+system.checkProcessing());
+            if(system instanceof ListeningEntitySystem){
+                ListeningEntitySystem s = (ListeningEntitySystem) system;
+                for(Entity e:s.getEntities()){
+                    System.out.println("    >"+EntityToString.convert(e));
+                }
+            }
+        }
+        System.out.println();
+        System.out.println("Entities:");
+        for(Entity e:entities){
+            System.out.println(">"+EntityToString.convert(e));
+        }
+        System.out.println("-----------------------------------------");
     }
 
 	@Override

@@ -18,7 +18,7 @@ import com.juniper.game.util.MapMask;
 /**
  * Created by Juniperbrew on 13.1.2015.
  */
-public class MapCollisionSystem extends IteratingSystem {
+public class MapCollisionSystem extends ListeningEntitySystem {
 
     MapMask solidMask;
     GdxWorldData gdxWorldData;
@@ -60,7 +60,6 @@ public class MapCollisionSystem extends IteratingSystem {
         if((delta.deltaX > 0 && collides((int)newPos.x+bounds.width,(int)newPos.y+(bounds.height/2)))
                 || (delta.deltaX < 0 && collides((int) newPos.x, (int) newPos.y + (bounds.height/2)))){
             delta.deltaX = 0;
-            //FIXME reverting move should cause jittering when colliding?
             newPos.x = pos.x;
         }
         //Find mid point on top and bottom side of collision box and check if they are inside a tile

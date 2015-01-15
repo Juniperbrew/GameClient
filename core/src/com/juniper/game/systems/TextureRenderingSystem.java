@@ -11,72 +11,34 @@ import com.juniper.game.components.shared.Position;
 
 import java.util.Vector;
 
-public class TextureRenderingSystem extends EntitySystem implements EntityListener {
+public class TextureRenderingSystem extends ListeningEntitySystem {
 
     private Batch batch;
-    private Family family;
-    private Vector<Entity> entities;
 
     public TextureRenderingSystem(Family family, Batch batch){
-        this(family,batch,0);
-    }
-
-    public TextureRenderingSystem(Family family, Batch batch, int priority){
-        super(priority);
-        this.family = family;
+        super(family);
         this.batch = batch;
-        entities = new Vector<>();
     }
 
     @Override
-    public void addedToEngine (Engine engine) {
-        //FIXME can i somehow use ImmutableArray instead of Vector
-        ImmutableArray<Entity> immutableEntities = engine.getEntitiesFor(family);
-        for(Entity e : immutableEntities){
-            System.out.println("Entity (" + Mappers.nameM.get(e).name + ") added to texturerenderer");
-            entities.add(e);
-        }
-    }
-
-    @Override
-    public void removedFromEngine (Engine engine) {
-        entities.clear();
-    }
-
-
-    @Override
-    public void update (float deltaTime) {
-        for (Entity entity : entities) {
-            Position position = Mappers.positionM.get(entity);
-            //FIXME figure out a way to batch these calls
-            batch.begin();
-            //If entity doesnt have sprite component it has a AnimatedSprite component
-            if(Mappers.spriteM.get(entity) != null) {
-                TextureRegion texture = Mappers.spriteM.get(entity).texture;
-                batch.draw(texture, position.x, position.y);
+    protected void processEntity(Entity entity, float deltaTime) {
+        Position position = Mappers.positionM.get(entity);
+        //FIXME figure out a way to batch these calls
+        batch.begin();
+        //If entity doesnt have sprite component it has a AnimatedSprite component
+        if(Mappers.spriteM.get(entity) != null) {
+            TextureRegion texture = Mappers.spriteM.get(entity).texture;
+            batch.draw(texture, position.x, position.y);
+        }else{
+            AnimatedSprite animation = Mappers.animatedM.get(entity);
+            if(animation.needsStateTimeUpdate){
+                animation.addStateTime(deltaTime);
             }else{
-                AnimatedSprite animation = Mappers.animatedM.get(entity);
-                if(animation.needsStateTimeUpdate){
-                    animation.addStateTime(deltaTime);
-                }else{
-                    animation.clearStateTime();
-                }
-                TextureRegion texture = animation.getKeyFrame();
-                batch.draw(texture, position.x, position.y);
+                animation.clearStateTime();
             }
-            batch.end();
+            TextureRegion texture = animation.getKeyFrame();
+            batch.draw(texture, position.x, position.y);
         }
-    }
-
-    @Override
-    public void entityAdded(Entity entity) {
-        System.out.println("Entity (" + Mappers.nameM.get(entity).name + ") with Sprite added");
-        entities.add(entity);
-    }
-
-    @Override
-    public void entityRemoved(Entity entity) {
-        System.out.println("Entity (" + Mappers.nameM.get(entity).name + ") with Sprite removed");
-        entities.remove(entity);
+        batch.end();
     }
 }

@@ -10,7 +10,7 @@ import com.juniper.game.components.shared.Position;
 /**
  * Created by Juniperbrew on 14.1.2015.
  */
-public class CameraFocusSystem extends IteratingSystem {
+public class CameraFocusSystem extends ListeningEntitySystem {
 
     private OrthographicCamera camera;
 

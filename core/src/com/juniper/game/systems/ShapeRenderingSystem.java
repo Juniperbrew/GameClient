@@ -9,7 +9,7 @@ import com.juniper.game.Mappers;
 import com.juniper.game.components.shared.Bounds;
 import com.juniper.game.components.shared.Position;
 
-public class ShapeRenderingSystem extends IteratingSystem {
+public class ShapeRenderingSystem extends ListeningEntitySystem {
 
     ShapeRenderer shapeRenderer;
     OrthographicCamera camera;

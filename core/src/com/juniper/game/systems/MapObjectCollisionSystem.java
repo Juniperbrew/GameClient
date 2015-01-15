@@ -22,7 +22,7 @@ import java.util.Iterator;
 /**
  * Created by Juniperbrew on 14.1.2015.
  */
-public class MapObjectCollisionSystem extends IteratingSystem {
+public class MapObjectCollisionSystem extends ListeningEntitySystem {
 
     GdxWorldData gdxWorldData;
     MapObjects objects;

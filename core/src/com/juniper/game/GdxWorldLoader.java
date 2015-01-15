@@ -19,7 +19,7 @@ public class GdxWorldLoader {
 	public static GdxWorldData loadWorld(String startingMapName){
 		String resFolderPath = (System.getProperty("user.dir") + File.separator + "res" + File.separator);
 
-		GdxWorldData gdxWorldData = new GdxWorldData(new Engine());
+		GdxWorldData gdxWorldData = new GdxWorldData(startingMapName);
 
 		System.out.println("#Loading world from: " + resFolderPath);
 		TiledMap startingMap = loadMap(resFolderPath, startingMapName);

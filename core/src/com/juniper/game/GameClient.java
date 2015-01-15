@@ -64,17 +64,21 @@ public class GameClient implements ApplicationListener, InputProcessor {
 	//World state
 	private List<String> nameList;
 	GdxWorldData gdxWorldData;
-	String mapName;
-	HashMap<Long,Component[]> pendingEntitySync;
 	long playerNetworkID = -1;
 	Entity player;
 
 	//Game state
-	boolean mapChanged;
 	boolean up;
 	boolean down;
 	boolean left;
 	boolean right;
+	HashMap<Long,Component[]> pendingEntitySync;
+	String pendingMapChange;
+	public long tickStartTime;
+	public long mapChangeDuration;
+	public long syncDuration;
+	public long updateDuration;
+	public long guiUpdateDuration;
 
 	@Override
 	public void create () {
@@ -279,18 +283,18 @@ public class GameClient implements ApplicationListener, InputProcessor {
 				}else if (object instanceof GoToMap){
 					//If client gets this packet it means the server allows them to change map
 					//Map can't be loaded from the network thread so we set a flag that loads it when possible avoids  RuntimeException: No OpenGL context found in the current thread.
-					//FIXME is this the best way?
-					mapChanged = true;
-					mapName = ((GoToMap) object).mapName;
+					pendingMapChange = ((GoToMap) object).mapName;
 				}else if(object instanceof Spawn){
 					Spawn spawn = (Spawn) object;
-					//Server confirms that we have spawned
-					mapChanged = true;
-					mapName = spawn.mapName;
-					playerNetworkID = spawn.networkID;
-					camera.position.set(spawn.x, spawn.y, 0);
-					mapChanged = true;
-
+					if(spawn.networkID < 0){
+						//Negative networkID on spawn means server has removed this player
+						reset();
+					}else{
+						//Server confirms that we have spawned
+						pendingMapChange = spawn.mapName;
+						playerNetworkID = spawn.networkID;
+						camera.position.set(spawn.x, spawn.y, 0);
+					}
 				}
 			}
 		});
@@ -302,7 +306,7 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		new Thread("Connect") {
 			public void run() {
 				try {
-					client.connect(5000, host, Network.port);
+					client.connect(5000, host, Network.portTCP, Network.portUDP);
 					// Server communication after connection can go here, or in Listener#connected().
 					if(spawnMap != null){
 						Spawn spawn = new Spawn();
@@ -319,9 +323,28 @@ public class GameClient implements ApplicationListener, InputProcessor {
 
 	}
 
+	private void reset(){
+		player = null;
+		playerNetworkID = -1;
+		gdxWorldData = null;
+		tiledMapRenderer = null;
+		HashMap<Long,Component[]> pendingEntitySync = null;
+		String pendingMapChange = null;
+	}
+
 	private void loadMap(String mapName){
+
 		gdxWorldData = GdxWorldLoader.loadWorld(mapName);
+		/*If this is a mapchange we already have a player entity from server
+		Loading the world like this clears all entities and adds entities from the map
+		Since the player is not in the mapfile we would have to wait for the server
+		to send it in a sync update and then give it the required client only components
+		Instead we just add the old player entity reference this class has*/
+		if(player != null){
+			gdxWorldData.addEntity(player);
+		}
 		tiledMapRenderer = new OrthogonalTiledMapRenderer(gdxWorldData.getActiveMap());
+		initializeSystems();
 
 		MapProperties mapProperties = gdxWorldData.getActiveMap().getProperties();
 		Iterator<String> keys = mapProperties.getKeys();
@@ -329,6 +352,55 @@ public class GameClient implements ApplicationListener, InputProcessor {
 			String key = keys.next();
 			System.out.println(key + ": " + mapProperties.get(key));
 		}
+	}
+
+	private void initializeSystems(){
+
+		PlayerControlSystem playerControlSystem = new PlayerControlSystem(Family.all(PlayerControlled.class).get());
+		gdxWorldData.addFamilyListener(Family.all(PlayerControlled.class).get(),playerControlSystem);
+		gdxWorldData.addSystem(playerControlSystem);
+
+		MapCollisionSystem mapCollisionSystem = new MapCollisionSystem(Family.all(PlayerControlled.class).get(),gdxWorldData);
+		gdxWorldData.addFamilyListener(Family.all(PlayerControlled.class).get(),mapCollisionSystem);
+		gdxWorldData.addSystem(mapCollisionSystem);
+
+		MapObjectCollisionSystem mapObjectCollisionSystem = new MapObjectCollisionSystem(Family.all(PlayerControlled.class).get(),gdxWorldData);
+		gdxWorldData.addFamilyListener(Family.all(PlayerControlled.class).get(),mapObjectCollisionSystem);
+		gdxWorldData.addSystem(mapObjectCollisionSystem);
+
+		EntityCollisionSystem entityCollisionSystem = new EntityCollisionSystem(Family.all(PlayerControlled.class).get(),gdxWorldData);
+		gdxWorldData.addFamilyListener(Family.all(PlayerControlled.class).get(),entityCollisionSystem);
+		gdxWorldData.addSystem(entityCollisionSystem);
+
+		MovementApplyingSystem movementApplyingSystem = new MovementApplyingSystem(Family.all(Movement.class).get());
+		gdxWorldData.addFamilyListener(Family.all(Movement.class).get(),movementApplyingSystem);
+		gdxWorldData.addSystem(movementApplyingSystem);
+
+		CameraFocusSystem cameraFocusSystem = new CameraFocusSystem(Family.all(PlayerControlled.class).get(), camera);
+		gdxWorldData.addFamilyListener(Family.all(PlayerControlled.class).get(),cameraFocusSystem);
+		gdxWorldData.addSystem(cameraFocusSystem);
+
+		//Doesnt process entities no listener needed
+		gdxWorldData.addSystem(new MapRenderSystem(tiledMapRenderer,camera));
+
+		ShapeRenderingSystem shapeRenderingSystem = new ShapeRenderingSystem(Family.all(Position.class).exclude(Sprite.class,AnimatedSprite.class,TileID.class).get(), shapeRenderer,camera);
+		gdxWorldData.addFamilyListener(Family.all(Position.class).exclude(Sprite.class,AnimatedSprite.class,TileID.class).get(),shapeRenderingSystem);
+		gdxWorldData.addSystem(shapeRenderingSystem);
+
+		TextureRenderingSystem textureRenderingSystem = new TextureRenderingSystem(Family.one(Sprite.class,AnimatedSprite.class).get(), tiledMapRenderer.getBatch());
+		gdxWorldData.addFamilyListener(Family.one(Sprite.class, AnimatedSprite.class).get(), textureRenderingSystem);
+		gdxWorldData.addSystem(textureRenderingSystem);
+
+		TileIDTextureLoadingSystem tileIDTextureLoadingSystem = new TileIDTextureLoadingSystem(Family.all(TileID.class).get(),gdxWorldData);
+		gdxWorldData.addFamilyListener(Family.all(TileID.class).get(),tileIDTextureLoadingSystem);
+		gdxWorldData.addSystem(tileIDTextureLoadingSystem);
+
+		UpdateEntityOnServerSystem updateEntityOnServerSystem = new UpdateEntityOnServerSystem(Family.all(Movement.class).get(),client);
+		gdxWorldData.addFamilyListener(Family.all(Movement.class).get(),updateEntityOnServerSystem);
+		gdxWorldData.addSystem(updateEntityOnServerSystem);
+
+		//Doesnt process entities no listener needed
+		gdxWorldData.addSystem(new TimedSystem(1,gdxWorldData,this));
 	}
 
 	private void addChatLine(String line){
@@ -385,6 +457,26 @@ public class GameClient implements ApplicationListener, InputProcessor {
 					addChatLine("map command needs 1 argument");
 				}
 
+			}else if(command.equals("togglesystem")){
+				commandParsed = true;
+				try{
+					int index = scn.nextInt();
+					gdxWorldData.toggleSystem(index);
+				}catch(InputMismatchException e){
+					addChatLine("argument needs to be integer");
+				}catch(NoSuchElementException e){
+					addChatLine("togglesystem command needs 1 argument");
+				}
+			}else if(command.equals("toggleallsystems")){
+				commandParsed = true;
+				try{
+					boolean enabled = scn.nextBoolean();
+					gdxWorldData.toggleAllSystems(enabled);
+				}catch(InputMismatchException e){
+					addChatLine("argument 2 needs to be integer");
+				}catch(NoSuchElementException e){
+					addChatLine("togglesystem command needs 2 arguments");
+				}
 			}else if(command.equals("chat")){
 				commandParsed = true;
 				try{
@@ -419,10 +511,14 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-		if(mapChanged){
-			loadMap(mapName);
-			mapChanged = false;
+		tickStartTime = System.nanoTime();
+
+		if(pendingMapChange != null){
+			loadMap(pendingMapChange);
+			pendingMapChange = null;
 		}
+
+		mapChangeDuration = System.nanoTime()-tickStartTime;
 
 		//Sync entities with server
 		if(pendingEntitySync != null){
@@ -430,47 +526,31 @@ public class GameClient implements ApplicationListener, InputProcessor {
 			pendingEntitySync = null;
 		}
 
-		//This should only run once after spawn
+		syncDuration = System.nanoTime()-mapChangeDuration-tickStartTime;
+
+		//This should only run once after first spawn when server sends the player in a sync update
 		if(playerNetworkID >= 0 && player == null){
 			player = gdxWorldData.getEntityWithID(playerNetworkID);
 			if(player == null){
 				return;
 			}
-			System.out.println("Initializing world");
-
 			player.add(new AnimatedSprite(new TextureAtlas(Gdx.files.internal("data/spritesheetindexed.atlas"))));
 			player.add(new PlayerControlled());
-
-			TextureRenderingSystem textureRenderingSystem = new TextureRenderingSystem(Family.one(Sprite.class,AnimatedSprite.class).get(), tiledMapRenderer.getBatch());
-			gdxWorldData.addFamilyListener(Family.one(Sprite.class, AnimatedSprite.class).get(), textureRenderingSystem);
-
-			gdxWorldData.addSystem(new PlayerControlSystem(Family.all(PlayerControlled.class).get()));
-
-			gdxWorldData.addSystem(new MapCollisionSystem(Family.all(PlayerControlled.class).get(),gdxWorldData));
-			gdxWorldData.addSystem(new MapObjectCollisionSystem(Family.all(PlayerControlled.class).get(),gdxWorldData));
-			gdxWorldData.addSystem(new EntityCollisionSystem(Family.all(PlayerControlled.class).get(),gdxWorldData));
-
-			gdxWorldData.addSystem(new MovementApplyingSystem(Family.all(Position.class).get()));
-			gdxWorldData.addSystem(new CameraFocusSystem(Family.all(PlayerControlled.class).get(), camera));
-
-			gdxWorldData.addSystem(new MapRenderSystem(tiledMapRenderer,camera));
-			gdxWorldData.addSystem(new ShapeRenderingSystem(Family.all(Position.class).exclude(Sprite.class,AnimatedSprite.class).get(), shapeRenderer,camera));
-			gdxWorldData.addSystem(textureRenderingSystem);
-
-			gdxWorldData.addSystem(new TileIDTextureLoadingSystem(Family.all(TileID.class).get(),gdxWorldData));
-			gdxWorldData.addSystem(new UpdateEntityOnServerSystem(Family.all(Movement.class).get(),client));
-			//gdxWorldData.addSystem(new TimedSystem(1,gdxWorldData));
 		}
 
-		if(tiledMapRenderer != null){
 
+		if(tiledMapRenderer != null){
 			float delta = Gdx.graphics.getDeltaTime(); //seconds
 			gdxWorldData.updateWorld(delta);
 		}
 
+		updateDuration = System.nanoTime()-syncDuration-mapChangeDuration-tickStartTime;
+
 		//Draw GUI
 		stage.draw();
 		Gdx.graphics.setTitle("FPS: " + Gdx.graphics.getFramesPerSecond());
+
+		guiUpdateDuration = System.nanoTime()-updateDuration-syncDuration-mapChangeDuration-tickStartTime;
 	}
 
 	@Override

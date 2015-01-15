@@ -11,7 +11,7 @@ import com.juniper.game.components.client.AnimatedSprite;
 import com.juniper.game.components.client.Movement;
 import com.juniper.game.components.shared.Position;
 
-public class PlayerControlSystem extends IteratingSystem {
+public class PlayerControlSystem extends ListeningEntitySystem {
 
     public PlayerControlSystem(Family family) {
         super(family);

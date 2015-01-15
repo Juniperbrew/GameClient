@@ -9,7 +9,7 @@ import com.juniper.game.Mappers;
 import com.juniper.game.components.shared.TileID;
 import com.juniper.game.components.client.Sprite;
 
-public class TileIDTextureLoadingSystem extends IteratingSystem {
+public class TileIDTextureLoadingSystem extends ListeningEntitySystem {
 
     GdxWorldData gdxWorldData;
 

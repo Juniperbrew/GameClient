@@ -9,8 +9,9 @@ import com.esotericsoftware.kryonet.EndPoint;
 import com.juniper.game.components.shared.*;
 
 public class Network {
-	
-    static public final int port = 54555;
+
+	static public final int portTCP = 54555;
+	static public final int portUDP = 54556;
 
     // This registers objects that are going to be sent over the network.
     static public void register (EndPoint endPoint) {

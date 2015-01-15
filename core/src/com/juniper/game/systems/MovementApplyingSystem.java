@@ -10,7 +10,7 @@ import com.juniper.game.components.shared.Position;
 /**
  * Created by Juniperbrew on 13.1.2015.
  */
-public class MovementApplyingSystem extends IteratingSystem{
+public class MovementApplyingSystem extends ListeningEntitySystem{
 
     public MovementApplyingSystem(Family family) {
         super(family);

@@ -22,7 +22,7 @@ import java.util.Vector;
 /**
  * Created by Juniperbrew on 14.1.2015.
  */
-public class EntityCollisionSystem extends IteratingSystem {
+public class EntityCollisionSystem extends ListeningEntitySystem {
 
     GdxWorldData gdxWorldData;
 
@@ -49,7 +49,6 @@ public class EntityCollisionSystem extends IteratingSystem {
             Bounds eBounds = Mappers.boundsM.get(e);
             Rectangle eRect = new Rectangle(ePosition.x,ePosition.y,eBounds.width,eBounds.height);
             Rectangle intersection = new Rectangle();
-            //FIXME this move needs to be sent to server
             if(Intersector.intersectRectangles(eRect,playerRectXMovement, intersection)) {
                 movement.deltaX = 0;
                 Mappers.movementM.get(e).syncServer = true;

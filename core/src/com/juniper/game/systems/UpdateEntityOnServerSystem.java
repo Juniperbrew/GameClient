@@ -10,16 +10,12 @@ import com.juniper.game.components.client.PlayerControlled;
 import com.juniper.game.components.shared.Position;
 import com.juniper.game.network.Network.*;
 
-public class UpdateEntityOnServerSystem extends IteratingSystem {
+public class UpdateEntityOnServerSystem extends ListeningEntitySystem {
 
     Client client;
 
     public UpdateEntityOnServerSystem(Family family, Client client) {
-        this(family, client, 0);
-    }
-
-    public UpdateEntityOnServerSystem(Family family, Client client, int priority) {
-        super(family, priority);
+        super(family);
         this.client = client;
     }
 
