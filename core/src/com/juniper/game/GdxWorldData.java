@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.maps.MapLayer;
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.juniper.game.components.client.AnimatedSprite;
+import com.juniper.game.components.client.Movement;
 import com.juniper.game.components.shared.*;
 import com.juniper.game.util.EntityToString;
 
@@ -110,6 +111,11 @@ public class GdxWorldData implements EntityListener {
                     if(updatedComponent instanceof Position){
                         Position updatedPosition = (Position) updatedComponent;
                         Position currentPosition = Mappers.positionM.get(e);
+                        //Store the movement change in the movement component
+                        //Every entity that changes position needs this component so we can let the game crash here if someone doesnt have it
+                        Mappers.movementM.get(e).deltaX = updatedPosition.x - currentPosition.x;
+                        Mappers.movementM.get(e).deltaY = updatedPosition.y - currentPosition.y;
+
                         //If the moved entity has an animation
                         if(Mappers.animatedM.get(e) != null){
                             //FIXME this seems like an awkwards way to animated networked sprites
@@ -130,8 +136,6 @@ public class GdxWorldData implements EntityListener {
                                 Mappers.animatedM.get(e).needsStateTimeUpdate = false;
                             }
                         }
-                        currentPosition.x = updatedPosition.x;
-                        currentPosition.y = updatedPosition.y;
                     }else if(updatedComponent instanceof MapName){
                         Mappers.mapM.get(e).map = ((MapName) updatedComponent).map;
                     }else if(updatedComponent instanceof Name){
@@ -174,6 +178,11 @@ public class GdxWorldData implements EntityListener {
             e.add(new NetworkID(networkIDCounter));
             networkIDCounter++;
             System.out.println("Giving entity a network ID, this should never be called on client");
+        }
+        //If entity doesn't have a Movement component we give it one
+        //FIXME This component will be needed on both server and client for collision handling but the data will not be shared so it's probably best to assign these separately in both also there might be a better place where to add it
+        if(Mappers.movementM.get(e) == null){
+            e.add(new Movement());
         }
     engine.addEntity(e);
     }

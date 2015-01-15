@@ -12,8 +12,6 @@ import java.util.*;
 
 public class GdxWorldLoader {
 
-
-
 	public GdxWorldLoader(){
 
 	}
@@ -21,7 +19,6 @@ public class GdxWorldLoader {
 	public static GdxWorldData loadWorld(String startingMapName){
 		String resFolderPath = (System.getProperty("user.dir") + File.separator + "res" + File.separator);
 
-		//HashMap<String,TiledMap> allMaps = new HashMap<>();
 		GdxWorldData gdxWorldData = new GdxWorldData(new Engine());
 
 		System.out.println("#Loading world from: " + resFolderPath);

@@ -22,8 +22,10 @@ import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import com.juniper.game.components.client.AnimatedSprite;
+import com.juniper.game.components.client.Movement;
 import com.juniper.game.components.client.PlayerControlled;
 import com.juniper.game.components.client.Sprite;
+import com.juniper.game.components.shared.Player;
 import com.juniper.game.components.shared.Position;
 import com.juniper.game.components.shared.TileID;
 import com.juniper.game.network.Network;
@@ -442,14 +444,22 @@ public class GameClient implements ApplicationListener, InputProcessor {
 			TextureRenderingSystem textureRenderingSystem = new TextureRenderingSystem(Family.one(Sprite.class,AnimatedSprite.class).get(), tiledMapRenderer.getBatch());
 			gdxWorldData.addFamilyListener(Family.one(Sprite.class, AnimatedSprite.class).get(), textureRenderingSystem);
 
-			gdxWorldData.addSystem(new PlayerControlSystem(Family.all(PlayerControlled.class).get(), camera));
+			gdxWorldData.addSystem(new PlayerControlSystem(Family.all(PlayerControlled.class).get()));
+
+			gdxWorldData.addSystem(new MapCollisionSystem(Family.all(PlayerControlled.class).get(),gdxWorldData));
+			gdxWorldData.addSystem(new MapObjectCollisionSystem(Family.all(PlayerControlled.class).get(),gdxWorldData));
+			gdxWorldData.addSystem(new EntityCollisionSystem(Family.all(PlayerControlled.class).get(),gdxWorldData));
+
+			gdxWorldData.addSystem(new MovementApplyingSystem(Family.all(Position.class).get()));
+			gdxWorldData.addSystem(new CameraFocusSystem(Family.all(PlayerControlled.class).get(), camera));
+
 			gdxWorldData.addSystem(new MapRenderSystem(tiledMapRenderer,camera));
 			gdxWorldData.addSystem(new ShapeRenderingSystem(Family.all(Position.class).exclude(Sprite.class,AnimatedSprite.class).get(), shapeRenderer,camera));
 			gdxWorldData.addSystem(textureRenderingSystem);
 
 			gdxWorldData.addSystem(new TileIDTextureLoadingSystem(Family.all(TileID.class).get(),gdxWorldData));
-			gdxWorldData.addSystem(new UpdateEntityOnServerSystem(Family.all(PlayerControlled.class).get(),client));
-			gdxWorldData.addSystem(new TimedSystem(1,gdxWorldData));
+			gdxWorldData.addSystem(new UpdateEntityOnServerSystem(Family.all(Movement.class).get(),client));
+			//gdxWorldData.addSystem(new TimedSystem(1,gdxWorldData));
 		}
 
 		if(tiledMapRenderer != null){

@@ -16,6 +16,7 @@ public class EntityToString {
         String nameString = "";
         String mapNameString = "";
         String networkIDString = "";
+        String boundsString = "";
         StringBuilder miscString = new StringBuilder();
 
         for(Component component : components){
@@ -34,6 +35,9 @@ public class EntityToString {
             } else if (component instanceof NetworkID) {
                 NetworkID networkID = (NetworkID) component;
                 networkIDString = ("NetworkID: " + networkID.id + " ");
+            } else if (component instanceof Bounds) {
+                Bounds bounds = (Bounds) component;
+                boundsString = ("W:"+bounds.width+" H:"+bounds.height+" ");
             }else {
                 miscString.append(component.getClass().getSimpleName() + " ");
             }
@@ -43,6 +47,7 @@ public class EntityToString {
                 .append(networkIDString)
                 .append(nameString)
                 .append(mapNameString)
+                .append(boundsString)
                 .append(positionString)
                 .append(healthString)
                 .append(miscString);

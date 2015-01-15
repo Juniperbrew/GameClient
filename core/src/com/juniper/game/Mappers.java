@@ -2,6 +2,7 @@ package com.juniper.game;
 
 import com.badlogic.ashley.core.ComponentMapper;
 import com.juniper.game.components.client.AnimatedSprite;
+import com.juniper.game.components.client.Movement;
 import com.juniper.game.components.client.PlayerControlled;
 import com.juniper.game.components.client.Sprite;
 import com.juniper.game.components.shared.*;
@@ -17,4 +18,6 @@ public class Mappers {
     public static final ComponentMapper<TileID> tileidM = ComponentMapper.getFor(TileID.class);
     public static final ComponentMapper<AnimatedSprite> animatedM = ComponentMapper.getFor(AnimatedSprite.class);
     public static final ComponentMapper<PlayerControlled> playerControlledM = ComponentMapper.getFor(PlayerControlled.class);
+    public static final ComponentMapper<Bounds> boundsM = ComponentMapper.getFor(Bounds.class);
+    public static final ComponentMapper<Movement> movementM = ComponentMapper.getFor(Movement.class);
 }
