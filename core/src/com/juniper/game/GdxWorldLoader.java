@@ -1,6 +1,8 @@
 package com.juniper.game;
 
-import com.badlogic.ashley.core.Engine;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.assets.loaders.resolvers.ExternalFileHandleResolver;
+import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.maps.*;
 import com.badlogic.gdx.maps.tiled.TiledMap;
@@ -33,7 +35,6 @@ public class GdxWorldLoader {
 	}
 
 	private static TiledMap loadMap(String resFolderPath, String mapName){
-
 		System.out.println("#Loading map: " + mapName);
 		TiledMap tiledMap = new TmxMapLoader().load(mapName);
 

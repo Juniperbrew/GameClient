@@ -82,6 +82,9 @@ public class GameClient implements ApplicationListener, InputProcessor {
 
 	@Override
 	public void create () {
+		System.out.println("Internal storage path: " + Gdx.files.internal("data/uiskin.json"));
+		System.out.println("Local storage path: " + Gdx.files.getLocalStoragePath());
+		System.out.println("External storage path: " + Gdx.files.getExternalStoragePath());
 		shapeRenderer = new ShapeRenderer();
 		batch = new SpriteBatch();
 		skin = new Skin(Gdx.files.internal("data/uiskin.json"));
@@ -94,7 +97,6 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		camera = new OrthographicCamera();
 		camera.setToOrtho(false,w,h);
 		camera.update();
-		System.out.println("Local storage path: " + Gdx.files.getLocalStoragePath());
 
 		createGUI();
 
@@ -548,7 +550,12 @@ public class GameClient implements ApplicationListener, InputProcessor {
 
 		//Draw GUI
 		stage.draw();
-		Gdx.graphics.setTitle("FPS: " + Gdx.graphics.getFramesPerSecond());
+		if(client != null){
+			Gdx.graphics.setTitle("FPS:" + Gdx.graphics.getFramesPerSecond() + " Ping:"+client.getReturnTripTime()+"ms");
+		}else{
+			Gdx.graphics.setTitle("FPS:" + Gdx.graphics.getFramesPerSecond());
+		}
+
 
 		guiUpdateDuration = System.nanoTime()-updateDuration-syncDuration-mapChangeDuration-tickStartTime;
 	}
