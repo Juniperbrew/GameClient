@@ -24,5 +24,6 @@ public class TimedSystem extends IntervalSystem{
         System.out.println("Sync duration:"+ gameClient.syncDuration/1000f+"us");
         System.out.println("Update duration:"+ gameClient.updateDuration/1000f+"us");
         System.out.println("GUI update duration:"+ gameClient.guiUpdateDuration/1000f+"us");
+        gameClient.client.updateReturnTripTime();
     }
 }

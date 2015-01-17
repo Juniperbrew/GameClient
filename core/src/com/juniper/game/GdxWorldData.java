@@ -6,7 +6,10 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.maps.MapLayer;
+import com.badlogic.gdx.maps.MapLayers;
+import com.badlogic.gdx.maps.MapObjects;
 import com.badlogic.gdx.maps.tiled.TiledMap;
+import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.juniper.game.components.client.AnimatedSprite;
 import com.juniper.game.components.client.Movement;
 import com.juniper.game.components.shared.*;
@@ -29,6 +32,7 @@ public class GdxWorldData implements EntityListener {
     public MapLayer objectLayer;
     TextureAtlas textureAtlas;
     String mapName;
+    MapObjects objects;
 
     private long networkIDCounter;
 
@@ -42,6 +46,9 @@ public class GdxWorldData implements EntityListener {
         textureAtlas = new TextureAtlas(Gdx.files.internal("data/spritesheetindexed.atlas"));
     }
 
+    public MapObjects getObjects(){
+        return objects;
+    }
     public void addFamilyListener(Family family, EntityListener listener){
         engine.addEntityListener(family, listener);
     }
@@ -65,6 +72,12 @@ public class GdxWorldData implements EntityListener {
 
     public void setActiveMap(TiledMap map){
         this.map = map;
+        MapLayers layers = map.getLayers();
+        for(MapLayer layer : layers){
+            if(!(layer instanceof TiledMapTileLayer)){
+                objects = layer.getObjects();
+            }
+        }
     }
 
     public TiledMap getActiveMap(){
@@ -207,11 +220,14 @@ public class GdxWorldData implements EntityListener {
     engine.addEntity(e);
     }
 
+    public <T extends EntitySystem> T getSystem (Class<T> systemType) {
+       return engine.getSystem(systemType);
+    }
+
 
     public void removeAllEntities(){
         engine.removeAllEntities();
         networkIDCounter = 0;
-
         entityIDs.clear();
         entities.clear();
 

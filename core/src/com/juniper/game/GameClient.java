@@ -10,13 +10,14 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.maps.MapProperties;
-import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
+import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.ui.List;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.utils.*;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.kryonet.Connection;
@@ -25,18 +26,24 @@ import com.juniper.game.components.client.AnimatedSprite;
 import com.juniper.game.components.client.Movement;
 import com.juniper.game.components.client.PlayerControlled;
 import com.juniper.game.components.client.Sprite;
-import com.juniper.game.components.shared.Player;
+import com.juniper.game.components.shared.Bounds;
 import com.juniper.game.components.shared.Position;
 import com.juniper.game.components.shared.TileID;
 import com.juniper.game.network.Network;
 import com.juniper.game.network.Network.*;
 import com.juniper.game.systems.*;
+import com.juniper.game.util.CustomTiledMapRenderer;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.InputMismatchException;
+import java.util.NoSuchElementException;
+import java.util.Scanner;
+import java.util.Iterator;
+import java.util.TimerTask;
 
 public class GameClient implements ApplicationListener, InputProcessor {
-	Client client;
+	public Client client;
 	final int writeBufferSize = 8192; //Default 8192
 	final int objectBufferSize = 2048; //Default 2048 FIXME 10.1.2015 22:30 2048 breaks at about 60 entities
 
@@ -52,6 +59,8 @@ public class GameClient implements ApplicationListener, InputProcessor {
 	private TextField gameChatField;
 	private TextArea messageWindow;
 
+	HashMap<Long,TextField> chatBubbles;
+
 	//Graphics
 	float w;
 	float h;
@@ -59,7 +68,7 @@ public class GameClient implements ApplicationListener, InputProcessor {
 	private SpriteBatch batch;
 	private ShapeRenderer shapeRenderer;
 	private Stage stage;
-	OrthogonalTiledMapRenderer tiledMapRenderer;
+	CustomTiledMapRenderer tiledMapRenderer;
 
 	//World state
 	private List<String> nameList;
@@ -74,6 +83,9 @@ public class GameClient implements ApplicationListener, InputProcessor {
 	boolean right;
 	HashMap<Long,Component[]> pendingEntitySync;
 	String pendingMapChange;
+	boolean pendingReset;
+
+
 	public long tickStartTime;
 	public long mapChangeDuration;
 	public long syncDuration;
@@ -89,6 +101,7 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		batch = new SpriteBatch();
 		skin = new Skin(Gdx.files.internal("data/uiskin.json"));
 		stage = new Stage(new ScreenViewport(), batch);
+		chatBubbles = new HashMap<>();
 		Gdx.input.setInputProcessor(stage);
 
 		w = Gdx.graphics.getWidth();
@@ -213,8 +226,6 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		inGameLayout = new Table();
 		inGameLayout.setFillParent(true);
 		//inGameLayout.debug();
-		//chatBubble = new TextField("", skin);
-		//chatBubble.setVisible(false);
 		gameChatField = new TextField("",skin);
 		gameChatField.setVisible(false);
 		gameChatField.addListener(new InputListener() {
@@ -248,6 +259,58 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		stage.setKeyboardFocus(nameText);
 	}
 
+	public void showIngameMessage(String message){
+		if(message != null){
+			messageWindow.setVisible(true);
+			messageWindow.setText(message);
+		}else{
+			messageWindow.setVisible(false);
+			messageWindow.setText("");
+		}
+
+	}
+
+	private void showChatBubble(final long networkID, String message){
+		if(gdxWorldData == null) return;
+		Entity talker = gdxWorldData.getEntityWithID(networkID);
+		if(talker == null) return;
+		//We create new chat bubble if one doesnt exist
+		if(chatBubbles.get(networkID) == null){
+			TextField chatBubble = new TextField("",skin);
+			chatBubble.setWidth(100);
+			chatBubble.setVisible(false);
+			chatBubbles.put(networkID, chatBubble);
+			stage.addActor(chatBubble);
+			System.out.println("Created chat bubble for: "+Mappers.nameM.get(talker).name);
+		}
+		chatBubbles.get(networkID).setText(message);
+		float textWidth = skin.getFont("default-font").getBounds(message).width;
+		chatBubbles.get(networkID).setWidth(textWidth+10);
+		chatBubbles.get(networkID).setVisible(true);
+
+		Position pos = Mappers.positionM.get(talker);
+		Bounds bounds = Mappers.boundsM.get(talker);
+
+		//CHAT BUBBLE POSITION
+		float bubbleX = pos.x + bounds.width/2 - chatBubbles.get(networkID).getWidth()/2;
+		float bubbleY = pos.y + bounds.height/2 + 30;
+		//FIXME find out what camera projection does
+		Vector3 bubbleProjected = camera.project(new Vector3(bubbleX, bubbleY, 0));
+		chatBubbles.get(networkID).setPosition(bubbleProjected.x,bubbleProjected.y);
+
+
+		TimerTask chatBubbleFade = new TimerTask() {
+			@Override
+			public void run() {
+				chatBubbles.get(networkID).setVisible(false);
+				System.out.println(chatBubbles.get(networkID));
+				System.out.println(networkID+":ChatbubbleFade ended");
+			}
+		};
+		java.util.Timer timer = new java.util.Timer(true);
+		timer.schedule(chatBubbleFade,5*1000);
+	}
+
 	private void joinServer(String host, String name){
 		joinServer(host,name,null);
 	}
@@ -264,6 +327,7 @@ public class GameClient implements ApplicationListener, InputProcessor {
 				register.connectionName = name;
 				client.sendTCP(register);
 
+
 				Message m = new Message();
 				m.text = "sync";
 				client.sendTCP(m);
@@ -273,8 +337,9 @@ public class GameClient implements ApplicationListener, InputProcessor {
 				if (object instanceof Message) {
 					Message message = (Message)object;
 					System.out.println(message.text);
-					System.out.println("Received message: " + message.text);
-					addChatLine(message.text);
+					System.out.println("Received message: " + message.text + " from "+message.senderName);
+					addChatLine(message.senderName+": "+message.text);
+					showChatBubble(message.networkID,message.text);
 				}else if (object instanceof SyncPlayerList) {
 					SyncPlayerList syncPlayerList = (SyncPlayerList)object;
 					nameList.setItems(syncPlayerList.playerList.toArray(new String[syncPlayerList.playerList.size()]));
@@ -283,14 +348,23 @@ public class GameClient implements ApplicationListener, InputProcessor {
 					//FIXME temporarily store update untill we can update entities in game loop, this fixes a lot of nullpointer exceptions but maybe there is a nicer solution
 					pendingEntitySync = status.entities;
 				}else if (object instanceof GoToMap){
+					GoToMap goToMap = (GoToMap) object;
 					//If client gets this packet it means the server allows them to change map
 					//Map can't be loaded from the network thread so we set a flag that loads it when possible avoids  RuntimeException: No OpenGL context found in the current thread.
-					pendingMapChange = ((GoToMap) object).mapName;
+					pendingMapChange = goToMap.mapName;
+					if(goToMap.destinationObject != null){
+						Position pos = Mappers.positionM.get(player);
+						System.out.println("Going to "+goToMap.destinationObject+"("+goToMap.x+","+goToMap.y+") in map "+goToMap.mapName);
+						pos.x = goToMap.x;
+						pos.y = goToMap.y;
+						camera.position.set(pos.x, pos.y, 0);
+						gdxWorldData.getSystem(PlayerControlSystem.class).setProcessing(true);
+					}
 				}else if(object instanceof Spawn){
 					Spawn spawn = (Spawn) object;
 					if(spawn.networkID < 0){
 						//Negative networkID on spawn means server has removed this player
-						reset();
+						pendingReset = true;
 					}else{
 						//Server confirms that we have spawned
 						pendingMapChange = spawn.mapName;
@@ -330,8 +404,10 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		playerNetworkID = -1;
 		gdxWorldData = null;
 		tiledMapRenderer = null;
-		HashMap<Long,Component[]> pendingEntitySync = null;
-		String pendingMapChange = null;
+		pendingEntitySync = null;
+		pendingMapChange = null;
+		pendingReset = false;
+		chatBubbles.clear();
 	}
 
 	private void loadMap(String mapName){
@@ -345,7 +421,7 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		if(player != null){
 			gdxWorldData.addEntity(player);
 		}
-		tiledMapRenderer = new OrthogonalTiledMapRenderer(gdxWorldData.getActiveMap());
+		tiledMapRenderer = new CustomTiledMapRenderer(gdxWorldData.getActiveMap());
 		initializeSystems();
 
 		MapProperties mapProperties = gdxWorldData.getActiveMap().getProperties();
@@ -358,7 +434,7 @@ public class GameClient implements ApplicationListener, InputProcessor {
 
 	private void initializeSystems(){
 
-		PlayerControlSystem playerControlSystem = new PlayerControlSystem(Family.all(PlayerControlled.class).get());
+		PlayerControlSystem playerControlSystem = new PlayerControlSystem(Family.all(PlayerControlled.class).get(),gdxWorldData,this);
 		gdxWorldData.addFamilyListener(Family.all(PlayerControlled.class).get(),playerControlSystem);
 		gdxWorldData.addSystem(playerControlSystem);
 
@@ -366,7 +442,7 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		gdxWorldData.addFamilyListener(Family.all(PlayerControlled.class).get(),mapCollisionSystem);
 		gdxWorldData.addSystem(mapCollisionSystem);
 
-		MapObjectCollisionSystem mapObjectCollisionSystem = new MapObjectCollisionSystem(Family.all(PlayerControlled.class).get(),gdxWorldData);
+		MapObjectCollisionSystem mapObjectCollisionSystem = new MapObjectCollisionSystem(Family.all(PlayerControlled.class).get(),gdxWorldData,client);
 		gdxWorldData.addFamilyListener(Family.all(PlayerControlled.class).get(),mapObjectCollisionSystem);
 		gdxWorldData.addSystem(mapObjectCollisionSystem);
 
@@ -383,7 +459,7 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		gdxWorldData.addSystem(cameraFocusSystem);
 
 		//Doesnt process entities no listener needed
-		gdxWorldData.addSystem(new MapRenderSystem(tiledMapRenderer,camera));
+		gdxWorldData.addSystem(new BottomMapRenderSystem(tiledMapRenderer,camera,gdxWorldData));
 
 		ShapeRenderingSystem shapeRenderingSystem = new ShapeRenderingSystem(Family.all(Position.class).exclude(Sprite.class,AnimatedSprite.class,TileID.class).get(), shapeRenderer,camera);
 		gdxWorldData.addFamilyListener(Family.all(Position.class).exclude(Sprite.class,AnimatedSprite.class,TileID.class).get(),shapeRenderingSystem);
@@ -392,6 +468,9 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		TextureRenderingSystem textureRenderingSystem = new TextureRenderingSystem(Family.one(Sprite.class,AnimatedSprite.class).get(), tiledMapRenderer.getBatch());
 		gdxWorldData.addFamilyListener(Family.one(Sprite.class, AnimatedSprite.class).get(), textureRenderingSystem);
 		gdxWorldData.addSystem(textureRenderingSystem);
+
+		//Doesnt process entities no listener needed
+		gdxWorldData.addSystem(new TopMapRenderSystem(tiledMapRenderer,camera,gdxWorldData));
 
 		TileIDTextureLoadingSystem tileIDTextureLoadingSystem = new TileIDTextureLoadingSystem(Family.all(TileID.class).get(),gdxWorldData);
 		gdxWorldData.addFamilyListener(Family.all(TileID.class).get(),tileIDTextureLoadingSystem);
@@ -417,10 +496,11 @@ public class GameClient implements ApplicationListener, InputProcessor {
 
 		//If input is not a command we send it as a message to server
 		if(input.charAt(0) != '!'){
-			Message request = new Message();
-			request.text = input;
-			client.sendTCP(request);
-			System.out.println("Sent message: " + request.text);
+			Message message = new Message();
+			message.text = input;
+			message.networkID = playerNetworkID;
+			client.sendTCP(message);
+			System.out.println("Sent message: " + message.text);
 			return true;
 			//Parse client commands
 		}else{
@@ -515,6 +595,10 @@ public class GameClient implements ApplicationListener, InputProcessor {
 
 		tickStartTime = System.nanoTime();
 
+		if(pendingReset){
+			reset();
+		}
+
 		if(pendingMapChange != null){
 			loadMap(pendingMapChange);
 			pendingMapChange = null;
@@ -548,6 +632,26 @@ public class GameClient implements ApplicationListener, InputProcessor {
 
 		updateDuration = System.nanoTime()-syncDuration-mapChangeDuration-tickStartTime;
 
+		//Keep chat bubbles over players
+		if(!chatBubbles.isEmpty()){
+			for(long id : chatBubbles.keySet()){
+				TextField chatBubble = chatBubbles.get(id);
+				Entity e = gdxWorldData.getEntityWithID(id);
+				if(e==null){
+					chatBubbles.remove(id);
+					continue;
+				}
+				Position pos = Mappers.positionM.get(e);
+				Bounds bounds = Mappers.boundsM.get(e);
+
+				float bubbleX = pos.x + bounds.width/2 - chatBubbles.get(id).getWidth()/2;
+				float bubbleY = pos.y + bounds.height/2 + 30;
+				//FIXME find out what camera projection does
+				Vector3 bubbleProjected = camera.project(new Vector3(bubbleX, bubbleY, 0));
+				chatBubbles.get(id).setPosition(bubbleProjected.x, bubbleProjected.y);
+			}
+		}
+
 		//Draw GUI
 		stage.draw();
 		if(client != null){
@@ -555,7 +659,6 @@ public class GameClient implements ApplicationListener, InputProcessor {
 		}else{
 			Gdx.graphics.setTitle("FPS:" + Gdx.graphics.getFramesPerSecond());
 		}
-
 
 		guiUpdateDuration = System.nanoTime()-updateDuration-syncDuration-mapChangeDuration-tickStartTime;
 	}
@@ -653,11 +756,12 @@ public class GameClient implements ApplicationListener, InputProcessor {
 
 	@Override
 	public void pause() {
-
+		System.out.println("PAUSED");
 	}
 
 	@Override
 	public void resume() {
+		System.out.println("RESUMED");
 
 	}
 
